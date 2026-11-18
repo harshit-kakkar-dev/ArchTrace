@@ -1,0 +1,10 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+
+# Local databases & secrets (NEVER commit these!)
+*.db
+*.sqlite3
+.env
