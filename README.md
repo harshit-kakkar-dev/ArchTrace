@@ -68,7 +68,9 @@ pip install -r requirements.txt
 Create a .env file in the project root (optional—ArchTrace works out of the box in offline heuristic mode without a key):
 
 Code snippet
-LLM_API_KEY=your_groq_or_openrouter_api_key 
+```
+LLM_API_KEY=your_groq_or_openrouter_api_key
+```
 
 3. Launch the Web Dashboard
 ```text
