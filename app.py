@@ -180,22 +180,33 @@ st.markdown(
         padding-top: 0.3rem;
     }
     .brand-badge {
-        background: var(--accent-primary);
-        color: #FFFFFF;
+        background: var(--accent-primary) !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         font-family: 'JetBrains Mono', monospace;
         font-size: 0.72rem;
         font-weight: 700;
         letter-spacing: 0.06em;
-        padding: 0.2rem 0.55rem;
+        padding: 0.22rem 0.6rem;
         border-radius: 5px;
     }
     .brand-sub {
-        color: var(--text-secondary);
-        font-size: 0.85rem;
+        color: var(--text-secondary) !important;
+        font-size: 0.86rem;
         font-weight: 500;
     }
 
-    /* Vibrant Studio Header Card */
+    /* Inline code pills */
+    code {
+        background-color: var(--accent-soft) !important;
+        color: var(--accent-primary) !important;
+        border: 1px solid var(--accent-border) !important;
+        padding: 0.12rem 0.4rem !important;
+        border-radius: 4px !important;
+        font-size: 0.84em !important;
+    }
+
+    /* Studio Header Card */
     .console-header {
         background: var(--header-bg);
         border: 1px solid var(--border-color);
@@ -270,19 +281,20 @@ st.markdown(
         border-color: var(--border-strong) !important;
     }
 
-    /* Vibrant Pill-Underline Tabs */
+    /* High-Contrast Tabs */
     .stTabs [data-baseweb="tab-list"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 10px !important;
-        padding: 0.3rem !important;
+        padding: 0.32rem !important;
         gap: 0.35rem !important;
         box-shadow: var(--card-shadow);
         margin-bottom: 1.1rem !important;
     }
-    .stTabs [data-baseweb="tab"] {
+    .stTabs [data-baseweb="tab"],
+    .stTabs [data-baseweb="tab"] p {
         background: transparent !important;
-        color: var(--text-secondary) !important;
+        color: var(--text-primary) !important;
         border-radius: 7px !important;
         font-weight: 600 !important;
         font-size: 0.9rem !important;
@@ -291,35 +303,46 @@ st.markdown(
     }
     .stTabs [data-baseweb="tab"]:hover {
         background: var(--bg-subtle) !important;
-        color: var(--text-primary) !important;
     }
-    .stTabs [aria-selected="true"] {
+    .stTabs [aria-selected="true"],
+    .stTabs [aria-selected="true"] p {
         background: var(--accent-primary) !important;
         color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         font-weight: 600 !important;
     }
     .stTabs [data-baseweb="tab-highlight"] {
         display: none !important;
     }
 
-    /* Inputs & Expanders */
+    /* Inputs, Number Inputs & Selects (Overrides Streamlit dark inner containers) */
+    [data-baseweb="input"],
     [data-baseweb="input"] > div,
+    [data-baseweb="base-input"],
+    [data-baseweb="textarea"],
     [data-baseweb="textarea"] > div,
-    [data-baseweb="select"] > div {
+    [data-baseweb="select"] > div,
+    [data-testid="stNumberInput"] > div,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stTextInput"] input {
         background-color: var(--bg-input) !important;
-        border: 1px solid var(--border-color) !important;
+        border-color: var(--border-color) !important;
         color: var(--text-primary) !important;
+        -webkit-text-fill-color: var(--text-primary) !important;
         border-radius: 8px !important;
+    }
+    [data-testid="stNumberInput"] button {
+        background-color: var(--bg-subtle) !important;
+        color: var(--text-primary) !important;
+        border-color: var(--border-color) !important;
     }
     [data-baseweb="input"] > div:focus-within,
     [data-baseweb="textarea"] > div:focus-within {
         border-color: var(--accent-primary) !important;
         box-shadow: 0 0 0 2px var(--accent-soft) !important;
     }
-    input, textarea {
-        color: var(--text-primary) !important;
-        -webkit-text-fill-color: var(--text-primary) !important;
-    }
+
+    /* Expanders */
     [data-testid="stExpander"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
@@ -331,7 +354,7 @@ st.markdown(
         font-weight: 600 !important;
     }
 
-    /* Vibrant Cobalt Buttons */
+    /* Buttons */
     .stButton > button, .stDownloadButton > button {
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
@@ -347,15 +370,13 @@ st.markdown(
         border-color: var(--accent-primary) !important;
         color: var(--accent-primary) !important;
     }
-    .stButton > button[kind="primary"] {
+    .stButton > button[kind="primary"],
+    .stButton > button[kind="primary"] p {
         background: var(--accent-primary) !important;
         color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
         border: 1px solid var(--accent-primary) !important;
         font-weight: 600 !important;
-    }
-    .stButton > button[kind="primary"]:hover {
-        background: var(--accent-hover) !important;
-        color: #FFFFFF !important;
     }
 
     /* Decision Callouts & Metadata Chips */
