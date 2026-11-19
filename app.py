@@ -19,6 +19,13 @@ from archtrace.git_tracker import (
     register_file_rename,
     sync_git_renames,
 )
+from archtrace.git_tracker import (
+    query_decisions_for_pr,
+    record_pr_feedback,
+    register_file_rename,
+    search_decisions,
+    sync_git_renames,
+)
 from archtrace.identity import IdentityResolver
 from archtrace.ingestion import (
     fetch_discourse_thread,
