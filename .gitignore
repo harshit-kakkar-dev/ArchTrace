@@ -8,3 +8,6 @@ venv/
 *.db
 *.sqlite3
 .env
+
+
+project_dump.txt
