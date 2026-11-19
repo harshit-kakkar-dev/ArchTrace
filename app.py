@@ -154,6 +154,7 @@ with tab1:
 
         with col_left:
             st.success(f"### Extracted Decision: {res.get('title')}")
+            st.caption(f"Engine: `{res.get('extraction_mode', 'Offline Heuristic Mode')}`")
             st.markdown(f"**Chosen Decision:** {res.get('final_decision')}")
             st.markdown(f"**Rationale:** {res.get('rationale')}")
             st.markdown(f"**Linked Files:** `{', '.join(res.get('affected_files', []))}`")
