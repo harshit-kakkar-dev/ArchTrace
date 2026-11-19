@@ -42,7 +42,7 @@ def fetch_discourse_thread(thread_url: str, max_posts: int = 30, db_path: str = 
 
 
 def fetch_github_discussion(github_url: str, max_comments: int = 30, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
-    """Fetches a public GitHub Issue or Pull Request thread + comments via GitHub REST API."""
+    """Fetches a single public GitHub Issue or Pull Request thread + comments via GitHub REST API."""
     match = re.search(r"github\.com/([^/]+)/([^/]+)/(issues|pull)/(\d+)", github_url)
     if not match:
         raise ValueError("Invalid GitHub URL. Expected format: https://github.com/owner/repo/issues/123")
@@ -84,6 +84,63 @@ def fetch_github_discussion(github_url: str, max_comments: int = 30, db_path: st
                 "text": (c.get("body") or "")[:1800],
             })
     return extracted
+
+
+def fetch_github_repo_issues(
+    repo_url: str, max_issues: int = 5, db_path: str = DEFAULT_DB_PATH
+) -> List[Tuple[str, str, List[Dict]]]:
+    """Scans a whole GitHub repository (no issue number needed) and fetches its recent issues/PRs."""
+    clean_url = repo_url.strip().rstrip("/").removesuffix(".git")
+    match = re.search(r"github\.com/([^/]+)/([^/]+)", clean_url)
+    if not match:
+        raise ValueError("Invalid GitHub Repo URL. Expected format: https://github.com/owner/repo")
+
+    owner, repo = match.groups()
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "ArchTrace-Bot/1.0"}
+    gh_token = os.getenv("GITHUB_TOKEN")
+    if gh_token:
+        headers["Authorization"] = f"Bearer {gh_token}"
+
+    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=all&sort=comments&direction=desc&per_page={max_issues}"
+    resp = requests.get(list_api, headers=headers, timeout=15)
+    resp.raise_for_status()
+    issues = resp.json()
+
+    results: List[Tuple[str, str, List[Dict]]] = []
+    for item in issues[:max_issues]:
+        html_url = item.get("html_url", "")
+        title = item.get("title", "Untitled")
+        posts: List[Dict] = []
+
+        op_handle = item.get("user", {}).get("login", "unknown")
+        op_cid = IdentityResolver.resolve("github", op_handle, op_handle, db_path=db_path)
+        posts.append({
+            "post_uid": f"gh_issue_{item.get('id')}",
+            "author": op_handle,
+            "canonical_id": op_cid,
+            "created_at": item.get("created_at", ""),
+            "url": html_url,
+            "text": f"TITLE: {title}\n\n{item.get('body') or ''}"[:1800],
+        })
+
+        comments_url = item.get("comments_url")
+        if comments_url and item.get("comments", 0) > 0:
+            c_resp = requests.get(f"{comments_url}?per_page=15", headers=headers, timeout=15)
+            if c_resp.ok:
+                for c in c_resp.json()[:15]:
+                    c_handle = c.get("user", {}).get("login", "unknown")
+                    c_cid = IdentityResolver.resolve("github", c_handle, c_handle, db_path=db_path)
+                    posts.append({
+                        "post_uid": f"gh_comment_{c.get('id')}",
+                        "author": c_handle,
+                        "canonical_id": c_cid,
+                        "created_at": c.get("created_at", ""),
+                        "url": c.get("html_url", html_url),
+                        "text": (c.get("body") or "")[:1800],
+                    })
+
+        results.append((html_url, title, posts))
+    return results
 
 
 def filter_new_or_updated_posts(

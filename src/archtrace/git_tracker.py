@@ -3,9 +3,18 @@ import json
 import re
 import subprocess
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Dict, List, Set
 from .db import DEFAULT_DB_PATH, get_connection
+
+STOP_WORDS = {
+    "the", "and", "for", "that", "this", "with", "from", "have", "want", "make",
+    "change", "would", "could", "should", "into", "about", "been", "were", "they",
+    "their", "there", "what", "when", "where", "which", "will", "just", "like",
+    "also", "some", "more", "than", "then", "them", "only", "very", "using", "used",
+    "use", "add", "new", "code", "file", "project", "idea", "instead", "replace",
+    "how", "why", "can", "are", "was", "has", "did", "does", "our", "out", "all",
+    "any", "but", "not", "you", "your", "rewrite", "coded",
+}
 
 
 def register_file_rename(old_path: str, new_path: str, db_path: str = DEFAULT_DB_PATH) -> None:
@@ -21,7 +30,7 @@ def register_file_rename(old_path: str, new_path: str, db_path: str = DEFAULT_DB
 
 
 def sync_git_renames(repo_dir: str = ".", db_path: str = DEFAULT_DB_PATH) -> int:
-    """Automatically scans git history for file renames (`git log --diff-filter=R --name-status`)."""
+    """Automatically scans git history for file renames (`git log --diff-filter=R --summary`)."""
     try:
         output = subprocess.check_output(
             ["git", "log", "--diff-filter=R", "--summary", "--pretty=format:"],
@@ -34,7 +43,6 @@ def sync_git_renames(repo_dir: str = ".", db_path: str = DEFAULT_DB_PATH) -> int
 
     count = 0
     for line in output.splitlines():
-        # Matches: rename old/path.py => new/path.py (95%)
         match = re.search(r"rename\s+(.+?)\s+=>\s+(.+?)\s+\(\d+%\)", line.strip())
         if match:
             old_p, new_p = match.group(1).strip(), match.group(2).strip()
@@ -89,7 +97,6 @@ def extract_python_ast_symbols(code_or_diff: str) -> Set[str]:
             elif isinstance(node, ast.Name):
                 symbols.add(node.id)
     except SyntaxError:
-        # Fallback for partial diff hunks that aren't standalone valid Python syntax
         for tok in re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", source):
             if len(tok) > 2:
                 symbols.add(tok)
@@ -132,11 +139,15 @@ def query_decisions_for_pr(
 
     conn = get_connection(db_path)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM decisions WHERE status = 'ACTIVE'")
+    cur.execute("SELECT * FROM decisions WHERE status = 'ACTIVE' ORDER BY id DESC")
     rows = cur.fetchall()
 
     matches: List[Dict] = []
+    seen_urls: Set[str] = set()
+
     for row in rows:
+        if row["source_url"] in seen_urls:
+            continue
         dec_id = row["id"]
         files = json.loads(row["affected_files_json"] or "[]")
         syms = json.loads(row["affected_symbols_json"] or "[]")
@@ -157,6 +168,7 @@ def query_decisions_for_pr(
                 reasons.append(f"AST symbol match (`{s}`)")
 
         if reasons:
+            seen_urls.add(row["source_url"])
             cur.execute("SELECT COUNT(*) as cnt FROM pr_feedback_memory WHERE decision_id = ? AND feedback_type = 'HELPFUL'", (dec_id,))
             helpful_count = cur.fetchone()["cnt"]
             matches.append({
@@ -173,3 +185,71 @@ def query_decisions_for_pr(
 
     conn.close()
     return matches
+
+
+def query_decisions_by_idea(
+    idea_text: str,
+    db_path: str = DEFAULT_DB_PATH,
+) -> List[Dict]:
+    """Plain-English 'Ask Before You Code' whole-word search across all stored decisions."""
+    raw_tokens = re.findall(r"[A-Za-z0-9_]{3,}", idea_text.lower())
+    query_terms = {t for t in raw_tokens if t not in STOP_WORDS}
+    if not query_terms:
+        return []
+
+    conn = get_connection(db_path)
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM decisions WHERE status = 'ACTIVE' ORDER BY id DESC")
+    rows = cur.fetchall()
+
+    scored_matches: List[tuple] = []
+    seen_urls: Set[str] = set()
+
+    for row in rows:
+        if row["source_url"] in seen_urls:
+            continue
+        dec_id = row["id"]
+        rejected = json.loads(row["rejected_alternatives_json"] or "[]")
+        files = json.loads(row["affected_files_json"] or "[]")
+        syms = json.loads(row["affected_symbols_json"] or "[]")
+
+        searchable_blob = " ".join([
+            row["title"] or "",
+            row["final_decision"] or "",
+            row["rationale"] or "",
+            " ".join(files),
+            " ".join(syms),
+            " ".join(
+                f"{r.get('idea', '')} {r.get('reason_rejected', '')} {r.get('verbatim_quote', '')}"
+                for r in rejected
+            ),
+        ]).lower()
+
+        # Whole-word boundary matching prevents 'how' matching 'however' or 'lab' matching 'available'
+        matched_terms = sorted({
+            term for term in query_terms
+            if re.search(rf"\b{re.escape(term)}\b", searchable_blob)
+        })
+
+        if matched_terms:
+            seen_urls.add(row["source_url"])
+            cur.execute("SELECT COUNT(*) as cnt FROM pr_feedback_memory WHERE decision_id = ? AND feedback_type = 'HELPFUL'", (dec_id,))
+            helpful_count = cur.fetchone()["cnt"]
+            scored_matches.append((
+                len(matched_terms),
+                {
+                    "id": dec_id,
+                    "source_url": row["source_url"],
+                    "title": row["title"],
+                    "final_decision": row["final_decision"],
+                    "rationale": row["rationale"],
+                    "rejected_alternatives": rejected,
+                    "matched_reasons": [f"Plain-English match on keywords: `{', '.join(matched_terms)}`"],
+                    "helpful_votes": helpful_count,
+                    "updated_at": row["updated_at"],
+                },
+            ))
+
+    conn.close()
+    scored_matches.sort(key=lambda x: x[0], reverse=True)
+    return [item for _, item in scored_matches]

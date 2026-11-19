@@ -14,6 +14,7 @@ from archtrace.benchmarks import SAMPLE_PEP_BENCHMARKS, compute_blind_recall
 from archtrace.db import DEFAULT_DB_PATH, get_connection, init_db
 from archtrace.extractor import extract_decisions_from_posts
 from archtrace.git_tracker import (
+    query_decisions_by_idea,
     query_decisions_for_pr,
     record_pr_feedback,
     register_file_rename,
@@ -23,12 +24,58 @@ from archtrace.identity import IdentityResolver
 from archtrace.ingestion import (
     fetch_discourse_thread,
     fetch_github_discussion,
+    fetch_github_repo_issues,
     filter_new_or_updated_posts,
 )
 
 load_dotenv()
 st.set_page_config(page_title="ArchTrace — Architectural Decision Recovery", layout="wide")
 init_db()
+
+# Fix Streamlit's default red focus border on text boxes so it doesn't look like an error
+st.markdown(
+    """
+    <style>
+    div[data-baseweb="textarea"]:focus-within,
+    div[data-baseweb="input"]:focus-within {
+        border-color: #38bdf8 !important;
+        box-shadow: 0 0 0 1px #38bdf8 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+def render_decision_cards(matches: list, key_prefix: str) -> None:
+    """Renders decision alerts directly under whichever search triggered them."""
+    for m in matches:
+        st.markdown("---")
+        st.markdown(f"### 🤖 ArchTrace Historical Alert — Decision #{m['id']}")
+        st.info(
+            f"**🏛️ Institutional Memory Match**\n\n"
+            f"- **Source Thread / Repo:** [{m['source_url']}]({m['source_url']})\n"
+            f"- **Decision:** {m['title']} (Helpful confirmations: `{m['helpful_votes']}`)\n"
+            f"- **Trigger Reason:** {', '.join(m['matched_reasons'])}\n"
+            f"- **Chosen Approach:** {m['final_decision']}\n"
+            f"- **Rationale:** {m['rationale']}"
+        )
+        for alt in m["rejected_alternatives"]:
+            st.markdown(
+                f"- ❌ **Rejected:** {alt.get('idea')} — *{alt.get('reason_rejected')}* "
+                f"([Source]({alt.get('source_url')}) by `{alt.get('author')}`: *\"{alt.get('verbatim_quote')}\"*)"
+            )
+
+        fb_col1, fb_col2 = st.columns(2)
+        with fb_col1:
+            if st.button(f"👍 /archtrace helpful (#{m['id']})", key=f"{key_prefix}_help_{m['id']}"):
+                record_pr_feedback(m["id"], "PR-DEMO", "HELPFUL", "Maintainer confirmed warning is valid.")
+                st.success("Episodic memory updated: decision reinforced!")
+        with fb_col2:
+            if st.button(f"🗑️ /archtrace obsolete (#{m['id']})", key=f"{key_prefix}_obs_{m['id']}"):
+                record_pr_feedback(m["id"], "PR-DEMO", "OBSOLETE", "Decision superseded by newer architecture.")
+                st.warning("Episodic memory updated: decision marked OBSOLETE and suppressed on future PRs!")
+
 
 st.title("🏛️ ArchTrace: Institutional Memory & Unwritten Decision Recovery")
 st.caption(
@@ -57,15 +104,26 @@ with st.sidebar:
     st.markdown("### 📐 Architecture Highlights")
     st.markdown(
         "- **Blind PEP Recovery:** Extracts Rejected Ideas without seeing the PEP\n"
-        "- **Incremental Sync:** SHA-256 post hashing skips unchanged comments\n"
+        "- **Whole-Repo Scan:** Paste any GitHub repo URL (no issue # needed)\n"
+        "- **Ask Before You Code:** Plain-English idea check for new devs\n"
         "- **Git Rename Resilience:** `git log --diff-filter=R` + AST symbol matching\n"
         "- **Self-Improving Memory:** PR feedback updates active vs. obsolete decisions"
     )
 
+    st.divider()
+    if st.button("🗑️ Reset Local Database"):
+        if os.path.exists(DEFAULT_DB_PATH):
+            os.remove(DEFAULT_DB_PATH)
+        init_db()
+        st.session_state.pop("idea_matches", None)
+        st.session_state.pop("pr_matches", None)
+        st.session_state.pop("pep_result", None)
+        st.success("Database cleared! Ready for a clean demo.")
+
 tab1, tab2, tab3, tab4 = st.tabs([
     "🧪 1. Blind PEP Benchmark",
-    "🌐 2. Multi-Source Ingestion",
-    "🤖 3. PR Bot & Episodic Memory",
+    "🌐 2. Multi-Source & Whole-Repo Ingestion",
+    "🤖 3. Ask Before You Code & PR Bot",
     "🪪 4. Cross-Platform Identity",
 ])
 
@@ -142,51 +200,118 @@ with tab1:
                 st.markdown(f"- ✅ **{item}**")
 
 # =====================================================================
-# TAB 2: LIVE MULTI-SOURCE INGESTION
+# TAB 2: LIVE MULTI-SOURCE & WHOLE-REPO INGESTION
 # =====================================================================
 with tab2:
-    st.subheader("Ingest Public GitHub Issues, PRs, or Discourse Threads")
-    source_type = st.radio("Source Platform", ["GitHub Issue / PR", "Discourse Forum"], horizontal=True)
-    default_url = (
-        "https://github.com/pallets/flask/issues/4612"
-        if "GitHub" in source_type
-        else "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
+    st.subheader("Ingest an Entire GitHub Repo, a Single Issue/PR, or a Discourse Thread")
+    source_type = st.radio(
+        "Source Platform",
+        ["Whole GitHub Repo (No Issue # Needed)", "Single GitHub Issue / PR", "Discourse Forum"],
+        horizontal=True,
     )
-    url_input = st.text_input("Public Thread URL", value=default_url)
-    files_input = st.text_input("Optional File Path Tags (comma-separated)", value="Objects/exceptions.c, Lib/traceback.py")
-    symbols_input = st.text_input("Optional Symbol Tags (comma-separated)", value="BaseException.add_note, __note__")
 
-    if st.button("📥 Ingest & Extract Decisions"):
-        with st.spinner("Fetching discussion and running incremental filter..."):
-            try:
-                posts = (
-                    fetch_github_discussion(url_input)
-                    if "GitHub" in source_type
-                    else fetch_discourse_thread(url_input)
-                )
-                new_posts, skipped = filter_new_or_updated_posts(url_input, posts)
-                st.info(f"Incremental Sync: **{len(new_posts)} new**, **{skipped} skipped**.")
+    if source_type == "Whole GitHub Repo (No Issue # Needed)":
+        repo_url = st.text_input(
+            "Paste Public GitHub Repo URL",
+            value="https://github.com/OSS-Initiatives-IIIT-Sonepat/vlabs-iiit-sonepat",
+        )
+        max_issues = st.slider("Top Discussed Issues/PRs to Scan", min_value=1, max_value=10, value=5)
 
-                files_list = [f.strip() for f in files_input.split(",") if f.strip()]
-                syms_list = [s.strip() for s in symbols_input.split(",") if s.strip()]
-                out = extract_decisions_from_posts(
-                    url_input,
-                    posts,
-                    provider=provider,
-                    api_key=api_key,
-                    target_files=files_list,
-                    target_symbols=syms_list,
-                )
-                st.success("Stored decision in ArchTrace institutional memory!")
-                st.json(out)
-            except Exception as exc:
-                st.error(f"Ingestion failed: {exc}")
+        if st.button("🌐 Auto-Scan Whole Repository", type="primary"):
+            with st.spinner("Scanning repository's most-discussed issues & PRs..."):
+                try:
+                    repo_threads = fetch_github_repo_issues(repo_url, max_issues=max_issues)
+                    if not repo_threads:
+                        st.warning("No public issues or PRs found in this repository.")
+                    else:
+                        total_new, total_skip = 0, 0
+                        for issue_url, issue_title, posts in repo_threads:
+                            new_p, skip_p = filter_new_or_updated_posts(issue_url, posts)
+                            total_new += len(new_p)
+                            total_skip += skip_p
+                            extract_decisions_from_posts(
+                                issue_url,
+                                posts,
+                                provider=provider,
+                                api_key=api_key,
+                            )
+                        st.success(
+                            f"Scanned **{len(repo_threads)}** top discussions from `{repo_url}`! "
+                            f"({total_new} new posts analyzed, {total_skip} cached posts skipped.)"
+                        )
+                        st.info("Now switch to **Tab 3** and type any plain-English idea to check it against this repo's history!")
+                except Exception as exc:
+                    st.error(f"Repo scan failed: {exc}")
+
+    else:
+        default_url = (
+            "https://github.com/pallets/flask/issues/3898"
+            if "GitHub" in source_type
+            else "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374"
+        )
+        url_input = st.text_input("Public Thread URL", value=default_url)
+        files_input = st.text_input("Optional File Path Tags (comma-separated)", value="Objects/exceptions.c, Lib/traceback.py")
+        symbols_input = st.text_input("Optional Symbol Tags (comma-separated)", value="BaseException.add_note, __note__")
+
+        if st.button("📥 Ingest & Extract Decisions"):
+            with st.spinner("Fetching discussion and running incremental filter..."):
+                try:
+                    posts = (
+                        fetch_github_discussion(url_input)
+                        if "GitHub" in source_type
+                        else fetch_discourse_thread(url_input)
+                    )
+                    new_posts, skipped = filter_new_or_updated_posts(url_input, posts)
+                    st.info(f"Incremental Sync: **{len(new_posts)} new**, **{skipped} skipped**.")
+
+                    files_list = [f.strip() for f in files_input.split(",") if f.strip()]
+                    syms_list = [s.strip() for s in symbols_input.split(",") if s.strip()]
+                    out = extract_decisions_from_posts(
+                        url_input,
+                        posts,
+                        provider=provider,
+                        api_key=api_key,
+                        target_files=files_list,
+                        target_symbols=syms_list,
+                    )
+                    st.success("Stored decision in ArchTrace institutional memory!")
+                    st.json(out)
+                except Exception as exc:
+                    st.error(f"Ingestion failed: {exc}")
 
 # =====================================================================
-# TAB 3: PR MEMORY BOT & SELF-IMPROVING EPISODIC MEMORY
+# TAB 3: PLAIN-ENGLISH IDEA CHECK + PR MEMORY BOT
 # =====================================================================
 with tab3:
-    st.subheader("🤖 Pull Request Memory Bot & Git Rename Lineage")
+    st.subheader("💡 Ask Before You Code (Plain-English Idea Check)")
+    st.write(
+        "New to the codebase? Describe the change you want to make in plain English—ArchTrace will check "
+        "if your idea was already discussed or rejected in the past."
+    )
+
+    with st.form("idea_check_form"):
+        idea_input = st.text_area(
+            "What change do you want to make?",
+            placeholder="Example: I want to redesign the function generator and microcontroller trainer components.",
+            height=85,
+        )
+        submitted_idea = st.form_submit_button("🔎 Check My Idea Against Project History", type="primary")
+
+    if submitted_idea:
+        if not idea_input.strip():
+            st.warning("Type your idea in plain English first!")
+        else:
+            idea_matches = query_decisions_by_idea(idea_input)
+            st.session_state["idea_matches"] = idea_matches
+            if not idea_matches:
+                st.success("✅ No past conflicts or rejected decisions found for this idea!")
+
+    # Render Plain-English results RIGHT HERE under the Plain-English box
+    if st.session_state.get("idea_matches"):
+        render_decision_cards(st.session_state["idea_matches"], key_prefix="idea")
+
+    st.divider()
+    st.subheader("🤖 Automated Pull Request Bot & Git Rename Lineage")
 
     col_a, col_b = st.columns(2)
     with col_a:
@@ -214,37 +339,15 @@ with tab3:
             height=130,
         )
 
-    if st.button("🔍 Run PR Decision Check", type="primary"):
+    if st.button("🔍 Run PR Decision Check"):
         matches = query_decisions_for_pr(pr_file, pr_diff)
         st.session_state["pr_matches"] = matches
         if not matches:
-            st.warning("No matching active decisions found. Run Tab 1 first to seed decisions!")
+            st.warning("No matching active decisions found. Run Tab 1 or Tab 2 first to seed decisions!")
 
-    for m in st.session_state.get("pr_matches", []):
-        st.markdown("---")
-        st.markdown(f"### 🤖 GitHub PR Bot Comment Preview — Decision #{m['id']}")
-        st.info(
-            f"**🏛️ ArchTrace Institutional Memory Alert**\n\n"
-            f"- **Decision:** {m['title']} (Helpful confirmations: `{m['helpful_votes']}`)\n"
-            f"- **Trigger Reason:** {', '.join(m['matched_reasons'])}\n"
-            f"- **Chosen Approach:** {m['final_decision']}\n"
-            f"- **Rationale:** {m['rationale']}"
-        )
-        for alt in m["rejected_alternatives"]:
-            st.markdown(
-                f"- ❌ **Rejected:** {alt.get('idea')} — *{alt.get('reason_rejected')}* "
-                f"([Source]({alt.get('source_url')}) by `{alt.get('author')}`: *\"{alt.get('verbatim_quote')}\"*)"
-            )
-
-        fb_col1, fb_col2 = st.columns(2)
-        with fb_col1:
-            if st.button(f"👍 /archtrace helpful (#{m['id']})", key=f"help_{m['id']}"):
-                record_pr_feedback(m["id"], "PR-DEMO", "HELPFUL", "Maintainer confirmed warning is valid.")
-                st.success("Episodic memory updated: decision reinforced!")
-        with fb_col2:
-            if st.button(f"🗑️ /archtrace obsolete (#{m['id']})", key=f"obs_{m['id']}"):
-                record_pr_feedback(m["id"], "PR-DEMO", "OBSOLETE", "Decision superseded by newer architecture.")
-                st.warning("Episodic memory updated: decision marked OBSOLETE and suppressed on future PRs!")
+    # Render PR Bot results RIGHT HERE under the PR Bot section
+    if st.session_state.get("pr_matches"):
+        render_decision_cards(st.session_state["pr_matches"], key_prefix="pr")
 
 # =====================================================================
 # TAB 4: CROSS-PLATFORM IDENTITY RESOLUTION
