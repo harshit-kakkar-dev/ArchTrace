@@ -29,162 +29,259 @@ from archtrace.ingestion import (
 
 load_dotenv()
 st.set_page_config(
-    page_title="ArchTrace — Open-Source Decision Guide",
+    page_title="ArchTrace — Open-Source Decision Intelligence",
     page_icon="🧭",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 init_db()
 
-# Vibrant custom CSS + strict semantic typography
-st.markdown(
+# Top SaaS Navbar + Instant Light / Dark Theme Switcher
+nav_l, nav_r = st.columns([4, 1])
+with nav_l:
+    st.markdown(
+        '<div style="display:flex;align-items:center;gap:10px;padding-top:4px;">'
+        '<span style="background:linear-gradient(135deg,#6366F1,#06B6D4);color:white;font-weight:800;'
+        'padding:4px 10px;border-radius:8px;font-size:0.9rem;letter-spacing:0.03em;">ARCHTRACE</span>'
+        '<span style="font-size:0.88rem;opacity:0.75;font-weight:500;">Institutional Memory & PR Guardian</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+with nav_r:
+    dark_mode = st.toggle("🌙 Dark Mode", value=True, key="ui_dark_mode")
+
+# Dynamic Design Tokens for Light vs Dark Theme
+if dark_mode:
+    tokens = """
+        --app-bg: #090D16;
+        --surface: #111827;
+        --surface-elevated: #161F33;
+        --border-subtle: rgba(148, 163, 184, 0.16);
+        --text-main: #F8FAFC;
+        --text-sub: #94A3B8;
+        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.22), transparent 45%),
+                   linear-gradient(135deg, #1E1B4B 0%, #0F172A 100%);
+        --hero-border: rgba(99, 102, 241, 0.35);
+        --hero-title: #FFFFFF;
+        --hero-body: #CBD5E1;
+        --chosen-bg: rgba(16, 185, 129, 0.12);
+        --chosen-text: #ECFDF5;
+        --chip-bg: rgba(99, 102, 241, 0.16);
+        --chip-text: #C7D2FE;
+        --chip-border: rgba(129, 140, 248, 0.28);
+        --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
     """
+else:
+    tokens = """
+        --app-bg: #F8FAFC;
+        --surface: #FFFFFF;
+        --surface-elevated: #F1F5F9;
+        --border-subtle: #E2E8F0;
+        --text-main: #0F172A;
+        --text-sub: #475569;
+        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.16), transparent 45%),
+                   linear-gradient(135deg, #EEF2FF 0%, #F0FDFA 100%);
+        --hero-border: #C7D2FE;
+        --hero-title: #0F172A;
+        --hero-body: #334155;
+        --chosen-bg: #ECFDF5;
+        --chosen-text: #064E3B;
+        --chip-bg: #EEF2FF;
+        --chip-text: #3730A3;
+        --chip-border: #C7D2FE;
+        --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    """
+
+st.markdown(
+    f"""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    .block-container {
-        padding-top: 1.75rem;
-        padding-bottom: 3rem;
-        max-width: 1180px;
-    }
-    /* Hide Streamlit default deploy chrome for cleaner demo */
-    #MainMenu { visibility: hidden; }
-    footer { visibility: hidden; }
+    :root {{
+        {tokens}
+    }}
 
-    /* Vibrant Hero Banner */
-    .hero-banner {
-        background: linear-gradient(125deg, #1E1B4B 0%, #312E81 45%, #0F766E 100%);
-        border: 1px solid rgba(129, 140, 248, 0.35);
-        border-radius: 18px;
-        padding: 1.8rem 2.2rem;
-        margin-bottom: 1.4rem;
-        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.45);
-    }
-    .hero-pill {
-        display: inline-block;
-        background: rgba(255, 255, 255, 0.14);
-        color: #E0E7FF;
-        font-size: 0.78rem;
-        font-weight: 600;
-        letter-spacing: 0.04em;
+    html, body, .stApp {{
+        background-color: var(--app-bg) !important;
+        color: var(--text-main) !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }}
+
+    .block-container {{
+        padding-top: 1.2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px !important;
+    }}
+
+    #MainMenu, footer, header[data-testid="stHeader"] {{
+        background: transparent !important;
+    }}
+
+    /* Modern React-style Hero Section */
+    .saas-hero {{
+        background: var(--hero-bg);
+        border: 1px solid var(--hero-border);
+        border-radius: 20px;
+        padding: 2rem 2.4rem;
+        margin: 0.4rem 0 1.4rem 0;
+        box-shadow: var(--card-shadow);
+    }}
+    .saas-badge {{
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(99, 102, 241, 0.15);
+        color: #6366F1;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
-        padding: 0.25rem 0.75rem;
+        padding: 0.28rem 0.8rem;
         border-radius: 999px;
-        margin-bottom: 0.65rem;
-    }
-    .hero-banner h1 {
-        color: #FFFFFF !important;
-        font-size: 2.05rem !important;
-        font-weight: 800 !important;
-        line-height: 1.2 !important;
-        margin: 0 0 0.45rem 0 !important;
-    }
-    .hero-banner p {
-        color: #CBD5E1;
-        font-size: 1.02rem;
-        line-height: 1.55;
-        margin: 0;
-        max-width: 820px;
-    }
-
-    /* Section Headings (H2) */
-    h2.section-heading {
-        font-size: 1.45rem !important;
-        font-weight: 700 !important;
-        color: #F8FAFC !important;
-        margin-top: 0.35rem !important;
-        margin-bottom: 0.2rem !important;
-    }
-    p.section-sub {
-        color: #94A3B8;
-        font-size: 0.95rem;
-        margin-bottom: 1.1rem;
-    }
-
-    /* Decision Card Headings (H3 & H4) */
-    h3.card-title {
-        font-size: 1.2rem !important;
-        font-weight: 700 !important;
-        color: #F8FAFC !important;
-        margin: 0 !important;
-    }
-    h4.col-heading-chosen {
-        font-size: 0.95rem !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #34D399 !important;
-        margin: 0 0 0.5rem 0 !important;
-    }
-    h4.col-heading-rejected {
-        font-size: 0.95rem !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #FB7185 !important;
-        margin: 0 0 0.5rem 0 !important;
-    }
-
-    /* Status & Tag Pills */
-    .status-active {
-        background: rgba(16, 185, 129, 0.16);
-        color: #34D399;
-        border: 1px solid rgba(52, 211, 153, 0.35);
-        padding: 0.22rem 0.7rem;
-        border-radius: 999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .status-outdated {
-        background: rgba(148, 163, 184, 0.15);
-        color: #94A3B8;
-        border: 1px solid rgba(148, 163, 184, 0.3);
-        padding: 0.22rem 0.7rem;
-        border-radius: 999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .chosen-callout {
-        background: rgba(16, 185, 129, 0.1);
-        border-left: 4px solid #10B981;
-        padding: 0.85rem 1rem;
-        border-radius: 0 10px 10px 0;
-        color: #ECFDF5;
-        font-size: 0.96rem;
         margin-bottom: 0.75rem;
-    }
-    .code-chip {
-        display: inline-block;
-        background: rgba(99, 102, 241, 0.16);
-        color: #C7D2FE;
-        border: 1px solid rgba(129, 140, 248, 0.25);
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 0.78rem;
-        padding: 0.15rem 0.5rem;
-        border-radius: 6px;
-        margin: 0.15rem 0.25rem 0.15rem 0;
-    }
+    }}
+    .saas-hero h1 {{
+        color: var(--hero-title) !important;
+        font-size: 2.15rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.025em !important;
+        line-height: 1.18 !important;
+        margin: 0 0 0.55rem 0 !important;
+    }}
+    .saas-hero p {{
+        color: var(--hero-body) !important;
+        font-size: 1.03rem !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+        max-width: 780px;
+    }}
 
-    /* Tab Bar Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 0.5rem;
-        background-color: #131A2A;
-        padding: 0.4rem;
-        border-radius: 12px;
-        border: 1px solid rgba(148, 163, 184, 0.15);
-    }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
+    /* Strict Semantic Headings */
+    h2.sec-h2 {{
+        color: var(--text-main) !important;
+        font-size: 1.42rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.015em !important;
+        margin: 0.4rem 0 0.15rem 0 !important;
+    }}
+    p.sec-sub {{
+        color: var(--text-sub) !important;
+        font-size: 0.95rem !important;
+        margin-bottom: 1.1rem !important;
+    }}
+    h3.card-h3 {{
+        color: var(--text-main) !important;
+        font-size: 1.18rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.01em !important;
+        margin: 0 !important;
+    }}
+    h4.col-h4-good {{
+        color: #10B981 !important;
+        font-size: 0.84rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        margin: 0 0 0.55rem 0 !important;
+    }}
+    h4.col-h4-bad {{
+        color: #F43F5E !important;
+        font-size: 0.84rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.06em !important;
+        text-transform: uppercase !important;
+        margin: 0 0 0.55rem 0 !important;
+    }}
+
+    /* Elevated Glass/Bento Containers */
+    div[data-testid="stVerticalBlockBorderWrapper"] {{
+        background-color: var(--surface) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 16px !important;
+        box-shadow: var(--card-shadow) !important;
+        transition: transform 0.18s ease, border-color 0.18s ease;
+    }}
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+        border-color: rgba(99, 102, 241, 0.45) !important;
+        transform: translateY(-2px);
+    }}
+
+    /* Segmented Pill Navigation Tabs */
+    .stTabs [data-baseweb="tab-list"] {{
+        background-color: var(--surface) !important;
+        border: 1px solid var(--border-subtle) !important;
+        border-radius: 14px !important;
+        padding: 0.35rem !important;
+        gap: 0.4rem !important;
+        box-shadow: var(--card-shadow);
+    }}
+    .stTabs [data-baseweb="tab"] {{
+        color: var(--text-sub) !important;
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        padding: 0.5rem 1.05rem !important;
+    }}
+    .stTabs [aria-selected="true"] {{
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: #FFFFFF !important;
-    }
+        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+    }}
+
+    /* Buttons & Quick-Search Pills */
+    .stButton > button {{
+        border-radius: 10px !important;
+        font-weight: 600 !important;
+        border: 1px solid var(--border-subtle) !important;
+        transition: all 0.15s ease !important;
+    }}
+    .stButton > button[kind="primary"] {{
+        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+        color: #FFFFFF !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+    }}
+
+    /* Callouts & Monospace Code Chips */
+    .chosen-box {{
+        background: var(--chosen-bg);
+        border-left: 4px solid #10B981;
+        color: var(--chosen-text);
+        padding: 0.9rem 1.05rem;
+        border-radius: 0 12px 12px 0;
+        font-size: 0.96rem;
+        line-height: 1.5;
+        margin-bottom: 0.8rem;
+    }}
+    .code-chip {{
+        display: inline-block;
+        background: var(--chip-bg);
+        color: var(--chip-text);
+        border: 1px solid var(--chip-border);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.76rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 7px;
+        margin: 0.15rem 0.25rem 0.15rem 0;
+    }}
+    .pill-active {{
+        background: rgba(16, 185, 129, 0.14);
+        color: #10B981;
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        padding: 0.22rem 0.72rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }}
+    .pill-outdated {{
+        background: rgba(148, 163, 184, 0.16);
+        color: var(--text-sub);
+        border: 1px solid var(--border-subtle);
+        padding: 0.22rem 0.72rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -207,7 +304,7 @@ with st.sidebar:
         api_key = st.text_input("API Key (Groq / OpenRouter)", value=default_key, type="password")
         st.caption("Auto-discovers active open-weight models; falls back offline if blank.")
 
-    with st.expander("📐 Architecture Specs (For Judges)"):
+    with st.expander("📐 Under the Hood (For Judges)"):
         st.markdown(
             "- **Blind Evaluation:** Recovers rejected ideas without seeing PEP text\n"
             "- **Incremental Sync:** SHA-256 hashing skips unchanged comments\n"
@@ -218,12 +315,12 @@ with st.sidebar:
 # Semantic H1 Hero Banner
 st.markdown(
     """
-    <div class="hero-banner">
-        <span class="hero-pill">🧭 Open-Source Institutional Memory</span>
-        <h1>ArchTrace: Understand Why Code Was Built This Way</h1>
+    <div class="saas-hero">
+        <span class="saas-badge">🧭 Contributor Decision Intelligence</span>
+        <h1>Understand Why Code Was Built This Way</h1>
         <p>
-            New to the codebase? Search any feature, file, or idea before opening a Pull Request to see
-            past architectural decisions, rejected alternatives, and original maintainer discussions.
+            Search any feature, file path, or rejected idea before writing code. ArchTrace turns scattered GitHub
+            issues, PRs, and forum threads into instant, verifiable architectural briefs.
         </p>
     </div>
     """,
@@ -241,9 +338,9 @@ tab_guide, tab_repo, tab_pr, tab_bench = st.tabs([
 # TAB 1: CONTRIBUTOR-FIRST DECISION EXPLORER
 # =====================================================================
 with tab_guide:
-    st.markdown('<h2 class="section-heading">Explore Past Architectural Decisions</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sec-h2">Explore Architectural Decisions</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="section-sub">Click a quick topic below or search by feature, file path (including renamed files), or function name.</p>',
+        '<p class="sec-sub">Pick a starter topic or search by keyword, file path (including renamed files), or function symbol.</p>',
         unsafe_allow_html=True,
     )
 
@@ -281,9 +378,9 @@ with tab_guide:
             with st.container(border=True):
                 head_l, head_r = st.columns([4.5, 1])
                 with head_l:
-                    st.markdown(f'<h3 class="card-title">📌 {item["title"]}</h3>', unsafe_allow_html=True)
+                    st.markdown(f'<h3 class="card-h3">📌 {item["title"]}</h3>', unsafe_allow_html=True)
                 with head_r:
-                    badge_cls = "status-active" if item["status"] == "ACTIVE" else "status-outdated"
+                    badge_cls = "pill-active" if item["status"] == "ACTIVE" else "pill-outdated"
                     badge_txt = "● Active Standard" if item["status"] == "ACTIVE" else "○ Outdated"
                     st.markdown(f'<div style="text-align:right;"><span class="{badge_cls}">{badge_txt}</span></div>', unsafe_allow_html=True)
 
@@ -291,8 +388,8 @@ with tab_guide:
                 c_left, c_right = st.columns([1, 1.15], gap="large")
 
                 with c_left:
-                    st.markdown('<h4 class="col-heading-chosen">✅ What Was Chosen</h4>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="chosen-callout">{item["final_decision"]}</div>', unsafe_allow_html=True)
+                    st.markdown('<h4 class="col-h4-good">✅ What Was Chosen</h4>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="chosen-box">{item["final_decision"]}</div>', unsafe_allow_html=True)
                     st.markdown(f"**Rationale:** {item['rationale']}")
 
                     if item["affected_files"]:
@@ -306,7 +403,7 @@ with tab_guide:
                     st.link_button("🔗 Read Original Discussion Thread", item["source_url"])
 
                 with c_right:
-                    st.markdown('<h4 class="col-heading-rejected">🚫 Rejected Alternatives (Do Not Re-Propose)</h4>', unsafe_allow_html=True)
+                    st.markdown('<h4 class="col-h4-bad">🚫 Rejected Alternatives (Do Not Re-Propose)</h4>', unsafe_allow_html=True)
                     for alt in item["rejected_alternatives"]:
                         with st.expander(f"❌ {alt.get('idea')}", expanded=True):
                             st.write(alt.get("reason_rejected"))
@@ -317,9 +414,9 @@ with tab_guide:
 # TAB 2: INDEX ANY REPOSITORY OR FORUM
 # =====================================================================
 with tab_repo:
-    st.markdown('<h2 class="section-heading">Index Any Public Repository or Forum</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sec-h2">Index Any Public Repository or Forum</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="section-sub">Extract unwritten architectural decisions from any GitHub repository, Issue/PR, or Discourse forum.</p>',
+        '<p class="sec-sub">Extract unwritten architectural decisions from any GitHub repository, Issue/PR, or Discourse thread.</p>',
         unsafe_allow_html=True,
     )
 
@@ -382,16 +479,16 @@ with tab_repo:
 # TAB 3: PR GUARDIAN & CONTRIBUTOR PROFILES
 # =====================================================================
 with tab_pr:
-    st.markdown('<h2 class="section-heading">Automated Pull Request Guardian & Rename Lineage</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sec-h2">Automated Pull Request Guardian & Rename Lineage</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="section-sub">Simulate how ArchTrace warns contributors on PRs even after files move or get renamed.</p>',
+        '<p class="sec-sub">Simulate how ArchTrace warns contributors on PRs even after files move or get renamed.</p>',
         unsafe_allow_html=True,
     )
 
     col_a, col_b = st.columns([1, 1.3], gap="large")
     with col_a:
         with st.container(border=True):
-            st.markdown('<h3 class="card-title">1. File Rename Lineage</h3>', unsafe_allow_html=True)
+            st.markdown('<h3 class="card-h3">1. File Rename Lineage</h3>', unsafe_allow_html=True)
             st.write("")
             if st.button("🔄 Auto-Detect Git Renames", use_container_width=True):
                 detected = sync_git_renames(".")
@@ -404,7 +501,7 @@ with tab_pr:
 
     with col_b:
         with st.container(border=True):
-            st.markdown('<h3 class="card-title">2. Preview PR Memory Check</h3>', unsafe_allow_html=True)
+            st.markdown('<h3 class="card-h3">2. Preview PR Memory Check</h3>', unsafe_allow_html=True)
             st.write("")
             pr_file = st.text_input("Modified File in PR", value="src/core/exception_types.c")
             pr_diff = st.text_area(
@@ -452,9 +549,9 @@ with tab_pr:
 # TAB 4: BLIND ACCURACY BENCHMARK (FOR JUDGES)
 # =====================================================================
 with tab_bench:
-    st.markdown('<h2 class="section-heading">Blind Decision Recovery Benchmark</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sec-h2">Blind Decision Recovery Benchmark</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="section-sub">Evaluates ArchTrace on forum discussions alone while withholding the official PEP document.</p>',
+        '<p class="sec-sub">Evaluates ArchTrace on forum discussions alone while withholding the official PEP document.</p>',
         unsafe_allow_html=True,
     )
 
@@ -489,14 +586,14 @@ with tab_bench:
         col_l, col_r = st.columns([1.2, 1], gap="large")
         with col_l:
             with st.container(border=True):
-                st.markdown(f'<h3 class="card-title">Extracted: {res.get("title")}</h3>', unsafe_allow_html=True)
+                st.markdown(f'<h3 class="card-h3">Extracted: {res.get("title")}</h3>', unsafe_allow_html=True)
                 st.caption(f"Engine: `{res.get('extraction_mode', 'Heuristic')}`")
                 st.write(f"**Chosen:** {res.get('final_decision')}")
                 for alt in res.get("rejected_alternatives", []):
                     st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
         with col_r:
             with st.container(border=True):
-                st.markdown(f'<h3 class="card-title">🔑 Official {bench["pep_number"]} Answer Key</h3>', unsafe_allow_html=True)
+                st.markdown(f'<h3 class="card-h3">🔑 Official {bench["pep_number"]} Answer Key</h3>', unsafe_allow_html=True)
                 st.caption("Withheld during extraction")
                 for item in bench["ground_truth_rejected_ideas"]:
                     st.markdown(f"- ✅ {item}")
