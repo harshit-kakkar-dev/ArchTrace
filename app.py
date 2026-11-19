@@ -574,15 +574,22 @@ with tab_repo:
             with st.spinner(f"Reading top discussed issues & PRs in {repo_slug}..."):
                 try:
                     threads = fetch_github_repo_threads(repo_slug, max_threads=int(max_threads))
+                    from concurrent.futures import ThreadPoolExecutor
+
                     total_new, total_skipped = 0, 0
-                    extracted_list = []
+                    to_extract = []
                     for t in threads:
                         new_p, skip_p = filter_new_or_updated_posts(t["url"], t["posts"])
                         total_new += len(new_p)
                         total_skipped += skip_p
-                        if new_p or skip_p:
-                            dec = extract_decisions_from_posts(t["url"], t["posts"], provider=provider, api_key=api_key)
-                            extracted_list.append((t, dec))
+                        if new_p:
+                            to_extract.append(t)
+
+                    def _extract_thread(t):
+                        return (t, extract_decisions_from_posts(t["url"], t["posts"], provider=provider, api_key=api_key))
+
+                    with ThreadPoolExecutor(max_workers=4) as pool:
+                        extracted_list = list(pool.map(_extract_thread, to_extract))
 
                     st.success(
                         f"Indexed **{len(extracted_list)} discussions** from `{repo_slug}`! "

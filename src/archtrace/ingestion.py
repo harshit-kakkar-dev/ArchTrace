@@ -135,18 +135,24 @@ def fetch_github_repo_threads(
     resp = requests.get(list_api, headers=headers, timeout=20)
     resp.raise_for_status()
 
-    threads: List[Dict] = []
-    for item in resp.json():
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _fetch_one(item: Dict) -> Dict | None:
         html_url = item.get("html_url", "")
         if not html_url:
-            continue
+            return None
+        if item.get("comments", 0) == 0 and len(item.get("body") or "") < 120:
+            return None
         posts = fetch_github_discussion(html_url, max_comments=max_comments, db_path=db_path)
-        threads.append({
+        return {
             "number": item.get("number"),
             "title": item.get("title", "Untitled"),
             "url": html_url,
             "posts": posts,
-        })
+        }
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        threads = [res for res in pool.map(_fetch_one, resp.json()) if res is not None]
     return threads
 
 
