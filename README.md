@@ -87,6 +87,8 @@ Simulate rename-aware PR checks, record episodic feedback, and inspect unified c
 Run blind rejected-idea recall tests on Python PEPs.
 
 ### 🧪 Running Automated Tests
+```text
 Bash
 source venv/bin/activate
 python -m pytest -v
+```
