@@ -200,46 +200,6 @@ def search_decisions(query: str = "", include_obsolete: bool = False, db_path: P
     rows = conn.execute("SELECT * FROM decisions ORDER BY id DESC").fetchall()
     conn.close()
 
-<<<<<<< HEAD
-    raw_q = query.strip().lower()
-    raw_tokens = [t.strip("?.,!\"'()[]{}") for t in raw_q.split()]
-    tokens = [t for t in raw_tokens if len(t) > 1 and t not in STOP_WORDS]
-
-    scored_results: List[tuple[int, Dict]] = []
-    for r in rows:
-        item = dict(r)
-        if not include_obsolete and item["status"] == "OBSOLETE":
-            continue
-
-        item["rejected_alternatives"] = json.loads(item["rejected_alternatives_json"])
-        item["affected_files"] = json.loads(item["affected_files_json"])
-        item["affected_symbols"] = json.loads(item["affected_symbols_json"])
-
-        if not raw_q:
-            scored_results.append((1, item))
-            continue
-
-        blob = " ".join([
-            item["title"],
-            item["final_decision"],
-            item["rationale"],
-            " ".join(item["affected_files"]),
-            " ".join(item["affected_symbols"]),
-            " ".join(a.get("idea", "") + " " + a.get("reason_rejected", "") for a in item["rejected_alternatives"]),
-        ]).lower()
-
-        score = 0
-        if raw_q in blob:
-            score += 10
-        for tok in tokens:
-            if tok in blob:
-                score += 2
-        if score > 0:
-            scored_results.append((score, item))
-
-    scored_results.sort(key=lambda pair: pair[0], reverse=True)
-    return [item for _, item in scored_results]
-======= 
     scored_results: List[tuple] = []
     seen_urls: Set[str] = set()
 
@@ -323,4 +283,3 @@ def get_decision_stats(db_path: str = DEFAULT_DB_PATH) -> Dict:
         "total_rejected_ideas": total_rejected,
         "top_files": file_counter.most_common(6),
     }
->>>>>>> 917ea2e (just a little update)
