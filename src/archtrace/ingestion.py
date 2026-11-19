@@ -113,3 +113,34 @@ def filter_new_or_updated_posts(
     conn.commit()
     conn.close()
     return [p for p, _ in new_posts], skipped
+def fetch_github_repo_threads(
+    owner_repo: str, max_threads: int = 8, max_comments: int = 15, db_path: str = DEFAULT_DB_PATH
+) -> List[Dict]:
+    """Fetches recent discussed Issues and Pull Requests across ANY public GitHub repository (`owner/repo`)."""
+    cleaned = owner_repo.strip().replace("https://github.com/", "").strip("/")
+    if "/" not in cleaned:
+        raise ValueError("Expected format: 'owner/repo' (e.g., pallets/flask or tiangolo/fastapi)")
+
+    owner, repo = cleaned.split("/")[:2]
+    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "ArchTrace-Bot/1.0"}
+    gh_token = os.getenv("GITHUB_TOKEN")
+    if gh_token:
+        headers["Authorization"] = f"Bearer {gh_token}"
+
+    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=closed&sort=comments&direction=desc&per_page={max_threads}"
+    resp = requests.get(list_api, headers=headers, timeout=15)
+    resp.raise_for_status()
+
+    threads: List[Dict] = []
+    for item in resp.json():
+        html_url = item.get("html_url", "")
+        if not html_url:
+            continue
+        posts = fetch_github_discussion(html_url, max_comments=max_comments, db_path=db_path)
+        threads.append({
+            "number": item.get("number"),
+            "title": item.get("title", "Untitled"),
+            "url": html_url,
+            "posts": posts,
+        })
+    return threads
