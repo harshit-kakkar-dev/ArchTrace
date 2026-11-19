@@ -173,3 +173,46 @@ def query_decisions_for_pr(
 
     conn.close()
     return matches
+def search_decisions(query: str, include_obsolete: bool = False, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
+    """Lets contributors search stored architectural decisions by keyword, file path (including renames), or symbol."""
+    q = query.strip().lower()
+    candidate_paths = {p.lower() for p in resolve_historical_paths(query.strip(), db_path=db_path)} if q else set()
+
+    conn = get_connection(db_path)
+    cur = conn.cursor()
+    if include_obsolete:
+        cur.execute("SELECT * FROM decisions ORDER BY id DESC")
+    else:
+        cur.execute("SELECT * FROM decisions WHERE status = 'ACTIVE' ORDER BY id DESC")
+    rows = cur.fetchall()
+    conn.close()
+
+    results: List[Dict] = []
+    for row in rows:
+        files = json.loads(row["affected_files_json"] or "[]")
+        syms = json.loads(row["affected_symbols_json"] or "[]")
+        rejected = json.loads(row["rejected_alternatives_json"] or "[]")
+
+        searchable_blob = " ".join([
+            row["title"] or "",
+            row["final_decision"] or "",
+            row["rationale"] or "",
+            " ".join(files),
+            " ".join(syms),
+            " ".join(f"{r.get('idea', '')} {r.get('reason_rejected', '')}" for r in rejected),
+        ]).lower()
+
+        path_hit = any(f.lower() in candidate_paths for f in files)
+        if not q or q in searchable_blob or path_hit:
+            results.append({
+                "id": row["id"],
+                "status": row["status"],
+                "source_url": row["source_url"],
+                "title": row["title"],
+                "final_decision": row["final_decision"],
+                "rationale": row["rationale"],
+                "affected_files": files,
+                "affected_symbols": syms,
+                "rejected_alternatives": rejected,
+            })
+    return results

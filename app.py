@@ -19,6 +19,13 @@ from archtrace.git_tracker import (
     register_file_rename,
     sync_git_renames,
 )
+from archtrace.git_tracker import (
+    query_decisions_for_pr,
+    record_pr_feedback,
+    register_file_rename,
+    search_decisions,
+    sync_git_renames,
+)
 from archtrace.identity import IdentityResolver
 from archtrace.ingestion import (
     fetch_discourse_thread,
@@ -62,13 +69,43 @@ with st.sidebar:
         "- **Self-Improving Memory:** PR feedback updates active vs. obsolete decisions"
     )
 
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🧪 1. Blind PEP Benchmark",
-    "🌐 2. Multi-Source Ingestion",
-    "🤖 3. PR Bot & Episodic Memory",
-    "🪪 4. Cross-Platform Identity",
+tab_search, tab1, tab2, tab3, tab4 = st.tabs([
+    "🔎 1. Search Decisions (New Contributors)",
+    "🧪 2. Blind PEP Benchmark",
+    "🌐 3. Multi-Source Ingestion",
+    "🤖 4. PR Bot & Episodic Memory",
+    "🪪 5. Cross-Platform Identity",
 ])
+with tab_search:
+    st.subheader("🔎 Search Architectural Decisions Before Writing Code")
+    st.write(
+        "New to the codebase? Search by feature, rejected idea, file path (even renamed paths), "
+        "or function/symbol name to see why things were built this way."
+    )
+    col_q1, col_q2 = st.columns([3, 1])
+    with col_q1:
+        search_query = st.text_input(
+            "Search by keyword, file path, or symbol (leave empty to browse all stored decisions)",
+            placeholder="e.g., __note__, missing_ok, Objects/exceptions.c, exception",
+        )
+    with col_q2:
+        show_obsolete = st.checkbox("Include obsolete decisions", value=False)
 
+    hits = search_decisions(search_query, include_obsolete=show_obsolete)
+    st.caption(f"Showing **{len(hits)}** recorded architectural decision(s).")
+
+    for item in hits:
+        with st.expander(f"📌 #{item['id']} — {item['title']} [{item['status']}]", expanded=True):
+            st.markdown(f"**Chosen Decision:** {item['final_decision']}")
+            st.markdown(f"**Why It Won:** {item['rationale']}")
+            st.markdown(f"**Files:** `{', '.join(item['affected_files']) or 'N/A'}` | **Symbols:** `{', '.join(item['affected_symbols']) or 'N/A'}`")
+            st.markdown(f"**Original Thread:** [{item['source_url']}]({item['source_url']})")
+            st.markdown("**❌ Rejected Alternatives (Do Not Re-Propose Without New Context):**")
+            for alt in item["rejected_alternatives"]:
+                st.markdown(
+                    f"- **{alt.get('idea')}** — *{alt.get('reason_rejected')}* "
+                    f"([Source]({alt.get('source_url')}) by `{alt.get('author')}`: *\"{alt.get('verbatim_quote')}\"*)"
+                )
 # =====================================================================
 # TAB 1: BLIND PEP BENCHMARK
 # =====================================================================
