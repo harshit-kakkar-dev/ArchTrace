@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 import streamlit as st
@@ -14,6 +15,7 @@ from archtrace.benchmarks import SAMPLE_PEP_BENCHMARKS, compute_blind_recall
 from archtrace.db import DEFAULT_DB_PATH, get_connection, init_db
 from archtrace.extractor import extract_decisions_from_posts
 from archtrace.git_tracker import (
+    get_decision_stats,
     query_decisions_for_pr,
     record_pr_feedback,
     register_file_rename,
@@ -28,6 +30,7 @@ from archtrace.ingestion import (
     fetch_mailing_list_archive,
     filter_new_or_updated_posts,
 )
+from archtrace.pr_bot import format_pr_comment
 
 load_dotenv()
 st.set_page_config(
@@ -37,6 +40,35 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 init_db()
+
+
+def build_adr_markdown(item: dict) -> str:
+    """Generates a standard Architectural Decision Record (ADR) Markdown file."""
+    lines = [
+        f"# ADR-{item['id']:04d}: {item['title']}",
+        "",
+        f"- **Status:** {item['status']}",
+        f"- **Source Thread:** {item['source_url']}",
+        f"- **Affected Files:** {', '.join(item.get('affected_files', [])) or 'None tagged'}",
+        f"- **Affected Symbols:** {', '.join(item.get('affected_symbols', [])) or 'None tagged'}",
+        "",
+        "## Decision",
+        item.get("final_decision", ""),
+        "",
+        "## Rationale",
+        item.get("rationale", ""),
+        "",
+        "## Rejected Alternatives",
+    ]
+    for alt in item.get("rejected_alternatives", []):
+        lines.append(f"### ❌ {alt.get('idea', 'Alternative')}")
+        lines.append(f"- **Why Rejected:** {alt.get('reason_rejected', '')}")
+        lines.append(f"- **Author:** {alt.get('author', 'unknown')}")
+        lines.append(f"- **Source:** {alt.get('source_url', item['source_url'])}")
+        lines.append(f"> \"{alt.get('verbatim_quote', '')}\"")
+        lines.append("")
+    return "\n".join(lines)
+
 
 # Top Utility Bar with Live Light / Dark Theme Toggle
 top_l, top_r = st.columns([4.5, 1])
@@ -108,14 +140,12 @@ st.markdown(
         --shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     }
 
-    /* Force Canvas & Global Typography in BOTH Light and Dark Modes */
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
         background-color: var(--bg-canvas) !important;
         color: var(--text-primary) !important;
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-    /* Force All Text, Labels, Captions, Markdown & Lists to Respect Theme */
     .stMarkdown p, .stMarkdown li, .stMarkdown span, label, [data-testid="stWidgetLabel"] p,
     [data-testid="stCaptionContainer"], .stCaption {
         color: var(--text-primary) !important;
@@ -124,7 +154,6 @@ st.markdown(
         color: var(--text-secondary) !important;
     }
 
-    /* Force Inputs, TextAreas, Selectboxes & Expanders to Respect Theme */
     [data-baseweb="input"] > div,
     [data-baseweb="textarea"] > div,
     [data-baseweb="select"] > div {
@@ -155,7 +184,6 @@ st.markdown(
         background: transparent !important;
     }
 
-    /* Primary Brand Hero Banner (ArchTrace + Tagline as H1) */
     .archtrace-hero {
         background: var(--hero-bg);
         border: 1px solid var(--hero-border);
@@ -187,7 +215,6 @@ st.markdown(
         max-width: 820px;
     }
 
-    /* Semantic Headings (H2 -> H3 -> H4) */
     h2.sec-h2 {
         color: var(--text-primary) !important;
         font-size: 1.45rem !important;
@@ -223,7 +250,6 @@ st.markdown(
         margin: 0 0 0.55rem 0 !important;
     }
 
-    /* Elevated Bento Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
@@ -236,7 +262,6 @@ st.markdown(
         transform: translateY(-2px);
     }
 
-    /* Segmented Pill Tabs */
     .stTabs [data-baseweb="tab-list"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
@@ -256,15 +281,14 @@ st.markdown(
         color: #FFFFFF !important;
     }
 
-    /* Secondary & Primary Buttons */
-    .stButton > button {
+    .stButton > button, .stDownloadButton > button {
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
     }
-    .stButton > button:hover {
+    .stButton > button:hover, .stDownloadButton > button:hover {
         border-color: #6366F1 !important;
         color: #6366F1 !important;
     }
@@ -274,7 +298,6 @@ st.markdown(
         border: none !important;
     }
 
-    /* Callout & Code Chips */
     .chosen-box {
         background: var(--chosen-bg);
         border-left: 4px solid #10B981;
@@ -344,15 +367,24 @@ with st.sidebar:
             "- **Episodic Memory:** Learns from `/archtrace helpful|obsolete`"
         )
 
-# Semantic H1 Hero Banner featuring ArchTrace + Tagline
+    st.divider()
+    if st.button("🗑️ Reset Local Database", use_container_width=True):
+        if os.path.exists(DEFAULT_DB_PATH):
+            os.remove(DEFAULT_DB_PATH)
+        init_db()
+        st.session_state.pop("pr_matches", None)
+        st.session_state.pop("pep_result", None)
+        st.success("Database cleared!")
+
+# Semantic H1 Hero Banner
 st.markdown(
     """
     <div class="archtrace-hero">
         <h1>🧭 ArchTrace</h1>
         <div class="hero-tagline">Institutional Memory &amp; Unwritten Decision Recovery for Open Source</div>
         <p class="hero-desc">
-            Understand why code was built this way before writing a single line. Search any feature, file path,
-            or rejected idea to surface past architectural choices, failed experiments, and original maintainer threads.
+            Understand why code was built this way before writing a single line. Ask in plain English, search any file path,
+            or inspect rejected ideas to surface past architectural choices and original maintainer threads.
         </p>
     </div>
     """,
@@ -367,12 +399,27 @@ tab_guide, tab_repo, tab_pr, tab_bench = st.tabs([
 ])
 
 # =====================================================================
-# TAB 1: CONTRIBUTOR-FIRST DECISION EXPLORER
+# TAB 1: CONTRIBUTOR-FIRST DECISION EXPLORER + HOTSPOTS + ADR EXPORT
 # =====================================================================
 with tab_guide:
+    # Upgrade 3: Decision Hotspots & Institutional Memory KPI Bar
+    stats = get_decision_stats()
+    if stats["total_decisions"] > 0:
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Decisions Tracked", stats["total_decisions"])
+        k2.metric("Active Standards", stats["active_decisions"])
+        k3.metric("Rejected Ideas Saved", stats["total_rejected_ideas"])
+        top_file_label = stats["top_files"][0][0] if stats["top_files"] else "None tagged"
+        k4.metric("Top Debated File", top_file_label)
+
+        if stats["top_files"]:
+            with st.expander("🔥 View Codebase Decision Hotspots (Most Debated Files)"):
+                chart_data = {fname: count for fname, count in stats["top_files"]}
+                st.bar_chart(chart_data)
+
     st.markdown('<h2 class="sec-h2">Explore Architectural Decisions</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="sec-sub">Pick a starter topic or search by keyword, file path (including renamed files), or function symbol.</p>',
+        '<p class="sec-sub">Ask in plain English (e.g., <em>"I want to redesign the function generator"</em>) or search by file path / symbol.</p>',
         unsafe_allow_html=True,
     )
 
@@ -391,7 +438,7 @@ with tab_guide:
         search_query = st.text_input(
             "Search decisions",
             key="search_box",
-            placeholder="🔎 Search by feature, file path, or symbol (e.g., __note__, missing_ok, Objects/exceptions.c)...",
+            placeholder="🔎 Ask in plain English or enter a file/symbol (e.g., I want to change the microcontroller lab)...",
             label_visibility="collapsed",
         )
     with col_q2:
@@ -433,6 +480,9 @@ with tab_guide:
                 head_l, head_r = st.columns([4.5, 1])
                 with head_l:
                     st.markdown(f'<h3 class="card-h3">📌 {item["title"]}</h3>', unsafe_allow_html=True)
+                    if item.get("matched_keywords"):
+                        kw_str = ", ".join(f"`{k}`" for k in item["matched_keywords"])
+                        st.caption(f"Matched keywords: {kw_str}")
                 with head_r:
                     badge_cls = "pill-active" if item["status"] == "ACTIVE" else "pill-outdated"
                     badge_txt = "● Active Standard" if item["status"] == "ACTIVE" else "○ Outdated"
@@ -498,7 +548,7 @@ with tab_guide:
 with tab_repo:
     st.markdown('<h2 class="sec-h2">Index Any Public Repository or Forum</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="sec-sub">Extract unwritten architectural decisions from any GitHub repository, Issue/PR, or Discourse thread.</p>',
+        '<p class="sec-sub">Extract unwritten architectural decisions from any GitHub repository, Issue/PR, Discourse thread, or Mailing List.</p>',
         unsafe_allow_html=True,
     )
 
@@ -570,7 +620,7 @@ with tab_repo:
                     st.error(f"Failed: {exc}")
 
 # =====================================================================
-# TAB 3: PR GUARDIAN & CONTRIBUTOR PROFILES
+# TAB 3: PR GUARDIAN & CONTRIBUTOR PROFILES + RAW PR COMMENT PREVIEW
 # =====================================================================
 with tab_pr:
     st.markdown('<h2 class="sec-h2">Automated Pull Request Guardian & Rename Lineage</h2>', unsafe_allow_html=True)
@@ -605,24 +655,33 @@ with tab_pr:
             )
             if st.button("🔍 Check Pull Request", type="primary", use_container_width=True):
                 st.session_state["pr_matches"] = query_decisions_for_pr(pr_file, pr_diff)
+                st.session_state["last_pr_file"] = pr_file
                 if not st.session_state["pr_matches"]:
                     st.info("No conflicting decisions found for this diff.")
 
-    for m in st.session_state.get("pr_matches", []):
-        with st.container(border=True):
-            st.warning(f"**🏛️ PR Bot Alert:** {m['title']} (Confirmed helpful `{m['helpful_votes']}` times)")
-            st.caption(f"Matched via: {', '.join(m['matched_reasons'])}")
-            st.write(f"**Current Standard:** {m['final_decision']}")
-            for alt in m["rejected_alternatives"]:
-                st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
+    pr_matches = st.session_state.get("pr_matches", [])
+    if pr_matches:
+        # Upgrade 4: Exact Raw GitHub PR Bot Comment Preview
+        checked_file = st.session_state.get("last_pr_file", pr_file)
+        raw_pr_comment = format_pr_comment([(checked_file, m) for m in pr_matches])
+        with st.expander("👀 Preview Raw GitHub PR Bot Comment (Exact Markdown Posted by GitHub Action)"):
+            st.code(raw_pr_comment, language="markdown")
 
-            b1, b2, _ = st.columns([1, 1, 2])
-            if b1.button(f"👍 Helpful (#{m['id']})", key=f"help_{m['id']}"):
-                record_pr_feedback(m["id"], "PR-DEMO", "HELPFUL", "Confirmed valid.")
-                st.success("Reinforced in episodic memory!")
-            if b2.button(f"🗑️ Mark Outdated (#{m['id']})", key=f"obs_{m['id']}"):
-                record_pr_feedback(m["id"], "PR-DEMO", "OBSOLETE", "Superseded.")
-                st.info("Marked outdated—won't alert future PRs.")
+        for m in pr_matches:
+            with st.container(border=True):
+                st.warning(f"**🏛️ PR Bot Alert:** {m['title']} (Confirmed helpful `{m['helpful_votes']}` times)")
+                st.caption(f"Matched via: {', '.join(m['matched_reasons'])}")
+                st.write(f"**Current Standard:** {m['final_decision']}")
+                for alt in m["rejected_alternatives"]:
+                    st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
+
+                b1, b2, _ = st.columns([1, 1, 2])
+                if b1.button(f"👍 Helpful (#{m['id']})", key=f"help_{m['id']}"):
+                    record_pr_feedback(m["id"], "PR-DEMO", "HELPFUL", "Confirmed valid.")
+                    st.success("Reinforced in episodic memory!")
+                if b2.button(f"🗑️ Mark Outdated (#{m['id']})", key=f"obs_{m['id']}"):
+                    record_pr_feedback(m["id"], "PR-DEMO", "OBSOLETE", "Superseded.")
+                    st.info("Marked outdated—won't alert future PRs.")
 
     with st.expander("🪪 Cross-Platform Contributor Identity Resolution"):
         c1, c2, c3, c4 = st.columns(4)

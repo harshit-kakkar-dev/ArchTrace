@@ -7,6 +7,8 @@ from bs4 import BeautifulSoup
 from .db import DEFAULT_DB_PATH, get_connection
 from .identity import IdentityResolver
 
+HEADERS = {"User-Agent": "ArchTrace-Bot/1.0"}
+
 
 def fetch_discourse_thread(thread_url: str, max_posts: int = 30, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
     """Fetches a public Discourse thread (e.g., discuss.python.org) via its native .json endpoint."""
@@ -16,7 +18,7 @@ def fetch_discourse_thread(thread_url: str, max_posts: int = 30, db_path: str = 
         clean_url = "/".join(parts[:-1])
     json_url = clean_url if clean_url.endswith(".json") else f"{clean_url}.json"
 
-    resp = requests.get(json_url, headers={"User-Agent": "ArchTrace-Bot/1.0"}, timeout=15)
+    resp = requests.get(json_url, headers=HEADERS, timeout=15)
     resp.raise_for_status()
     data = resp.json()
 
@@ -113,6 +115,8 @@ def filter_new_or_updated_posts(
     conn.commit()
     conn.close()
     return [p for p, _ in new_posts], skipped
+
+
 def fetch_github_repo_threads(
     owner_repo: str, max_threads: int = 8, max_comments: int = 15, db_path: str = DEFAULT_DB_PATH
 ) -> List[Dict]:
@@ -127,9 +131,7 @@ def fetch_github_repo_threads(
     if gh_token:
         headers["Authorization"] = f"Bearer {gh_token}"
 
-    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=closed&sort=comments&direction=desc&per_page={max_threads}"
-    resp = requests.get(list_api, headers=headers, timeout=15)
-    resp.raise_for_status()
+    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=all&sort=comments&direction=desc&per_page={max_threads}"    resp.raise_for_status()
 
     threads: List[Dict] = []
     for item in resp.json():
@@ -144,7 +146,11 @@ def fetch_github_repo_threads(
             "posts": posts,
         })
     return threads
-def fetch_mailing_list_archive(archive_url: str, max_messages: int = 15) -> List[Dict]:
+
+
+def fetch_mailing_list_archive(
+    archive_url: str, max_messages: int = 15, db_path: str = DEFAULT_DB_PATH
+) -> List[Dict]:
     """Fetches public mailing list archive threads (e.g., Python-Dev Pipermail .txt or HTML)."""
     resp = requests.get(archive_url.strip(), headers=HEADERS, timeout=15)
     resp.raise_for_status()
@@ -153,12 +159,13 @@ def fetch_mailing_list_archive(archive_url: str, max_messages: int = 15) -> List
     if "<html" in raw_text.lower():
         soup = BeautifulSoup(raw_text, "html.parser")
         clean_text = soup.get_text("\n", strip=True)
+        cid = IdentityResolver.resolve("mailing_list", "mailing_list_participant", "Mailing List Archive", db_path=db_path)
         return [{
-            "post_id": "ml-html-1",
+            "post_uid": f"ml_html_{hashlib.md5(archive_url.encode()).hexdigest()[:10]}",
             "author": "mailing_list_participant",
-            "display_name": "Mailing List Archive",
-            "timestamp": "",
-            "body": clean_text[:12000],
+            "canonical_id": cid,
+            "created_at": "",
+            "text": clean_text[:4000],
             "url": archive_url,
         }]
 
@@ -169,12 +176,13 @@ def fetch_mailing_list_archive(archive_url: str, max_messages: int = 15) -> List
         author = lines[0].split(" at ")[0].strip() if lines else f"sender_{idx}"
         body = "\n".join(lines[1:]).strip()
         if body:
+            cid = IdentityResolver.resolve("mailing_list", author, author, db_path=db_path)
             posts.append({
-                "post_id": f"ml-{idx}",
+                "post_uid": f"ml_{hashlib.md5(archive_url.encode()).hexdigest()[:8]}_{idx}",
                 "author": author,
-                "display_name": author,
-                "timestamp": "",
-                "body": body[:4000],
+                "canonical_id": cid,
+                "created_at": "",
+                "text": body[:1800],
                 "url": archive_url,
             })
     return posts
