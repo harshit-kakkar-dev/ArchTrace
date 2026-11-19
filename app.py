@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import streamlit as st
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parent
@@ -24,6 +25,7 @@ from archtrace.ingestion import (
     fetch_discourse_thread,
     fetch_github_discussion,
     fetch_github_repo_threads,
+    fetch_mailing_list_archive,
     filter_new_or_updated_posts,
 )
 
@@ -48,9 +50,23 @@ with top_l:
 with top_r:
     dark_mode = st.toggle("🌙 Dark Mode", value=True, key="ui_dark_mode")
 
-# Complete Light & Dark Theme Token System (overrides Streamlit widgets + custom cards)
-if dark_mode:
-    theme_css = """
+active_theme = "dark" if dark_mode else "light"
+components.html(
+    f"""
+    <script>
+      window.parent.document.documentElement.setAttribute('data-theme', '{active_theme}');
+    </script>
+    """,
+    height=0,
+    width=0,
+)
+
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    :root, :root[data-theme="dark"] {
         --bg-canvas: #090D16;
         --bg-surface: #111827;
         --bg-input: #1E293B;
@@ -69,9 +85,9 @@ if dark_mode:
         --chip-text: #C7D2FE;
         --chip-border: rgba(129, 140, 248, 0.3);
         --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    """
-else:
-    theme_css = """
+    }
+
+    :root[data-theme="light"] {
         --bg-canvas: #F4F7FB;
         --bg-surface: #FFFFFF;
         --bg-input: #F8FAFC;
@@ -90,185 +106,176 @@ else:
         --chip-text: #3730A3;
         --chip-border: #C7D2FE;
         --shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
-    """
-
-st.markdown(
-    f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-
-    :root {{
-        {theme_css}
-    }}
+    }
 
     /* Force Canvas & Global Typography in BOTH Light and Dark Modes */
-    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
         background-color: var(--bg-canvas) !important;
         color: var(--text-primary) !important;
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
-    }}
+    }
 
     /* Force All Text, Labels, Captions, Markdown & Lists to Respect Theme */
     .stMarkdown p, .stMarkdown li, .stMarkdown span, label, [data-testid="stWidgetLabel"] p,
-    [data-testid="stCaptionContainer"], .stCaption {{
+    [data-testid="stCaptionContainer"], .stCaption {
         color: var(--text-primary) !important;
-    }}
-    [data-testid="stCaptionContainer"] p {{
+    }
+    [data-testid="stCaptionContainer"] p {
         color: var(--text-secondary) !important;
-    }}
+    }
 
     /* Force Inputs, TextAreas, Selectboxes & Expanders to Respect Theme */
     [data-baseweb="input"] > div,
     [data-baseweb="textarea"] > div,
-    [data-baseweb="select"] > div {{
+    [data-baseweb="select"] > div {
         background-color: var(--bg-input) !important;
         border-color: var(--border-color) !important;
         color: var(--text-primary) !important;
         border-radius: 10px !important;
-    }}
-    input, textarea {{
+    }
+    input, textarea {
         color: var(--text-primary) !important;
         -webkit-text-fill-color: var(--text-primary) !important;
-    }}
-    [data-testid="stExpander"] {{
+    }
+    [data-testid="stExpander"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 12px !important;
-    }}
-    [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {{
+    }
+    [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {
         color: var(--text-primary) !important;
-    }}
+    }
 
-    .block-container {{
+    .block-container {
         padding-top: 1.1rem !important;
         padding-bottom: 3rem !important;
         max-width: 1200px !important;
-    }}
-    #MainMenu, footer, header[data-testid="stHeader"] {{
+    }
+    #MainMenu, footer, header[data-testid="stHeader"] {
         background: transparent !important;
-    }}
+    }
 
     /* Primary Brand Hero Banner (ArchTrace + Tagline as H1) */
-    .archtrace-hero {{
+    .archtrace-hero {
         background: var(--hero-bg);
         border: 1px solid var(--hero-border);
         border-radius: 22px;
         padding: 2.2rem 2.5rem;
         margin: 0.35rem 0 1.5rem 0;
         box-shadow: var(--shadow);
-    }}
-    .archtrace-hero h1 {{
+    }
+    .archtrace-hero h1 {
         color: var(--hero-title) !important;
         font-size: 2.65rem !important;
         font-weight: 800 !important;
         letter-spacing: -0.03em !important;
         line-height: 1.12 !important;
         margin: 0 0 0.35rem 0 !important;
-    }}
-    .hero-tagline {{
+    }
+    .hero-tagline {
         color: var(--hero-tagline) !important;
         font-size: 1.25rem !important;
         font-weight: 700 !important;
         letter-spacing: -0.01em !important;
         margin: 0 0 0.7rem 0 !important;
-    }}
-    .archtrace-hero p.hero-desc {{
+    }
+    .archtrace-hero p.hero-desc {
         color: var(--hero-body) !important;
         font-size: 1.02rem !important;
         line-height: 1.6 !important;
         margin: 0 !important;
         max-width: 820px;
-    }}
+    }
 
     /* Semantic Headings (H2 -> H3 -> H4) */
-    h2.sec-h2 {{
+    h2.sec-h2 {
         color: var(--text-primary) !important;
         font-size: 1.45rem !important;
         font-weight: 700 !important;
         letter-spacing: -0.015em !important;
         margin: 0.4rem 0 0.2rem 0 !important;
-    }}
-    p.sec-sub {{
+    }
+    p.sec-sub {
         color: var(--text-secondary) !important;
         font-size: 0.96rem !important;
         margin-bottom: 1.15rem !important;
-    }}
-    h3.card-h3 {{
+    }
+    h3.card-h3 {
         color: var(--text-primary) !important;
         font-size: 1.2rem !important;
         font-weight: 700 !important;
         margin: 0 !important;
-    }}
-    h4.col-h4-good {{
+    }
+    h4.col-h4-good {
         color: #10B981 !important;
         font-size: 0.84rem !important;
         font-weight: 800 !important;
         letter-spacing: 0.06em !important;
         text-transform: uppercase !important;
         margin: 0 0 0.55rem 0 !important;
-    }}
-    h4.col-h4-bad {{
+    }
+    h4.col-h4-bad {
         color: #F43F5E !important;
         font-size: 0.84rem !important;
         font-weight: 800 !important;
         letter-spacing: 0.06em !important;
         text-transform: uppercase !important;
         margin: 0 0 0.55rem 0 !important;
-    }}
+    }
 
     /* Elevated Bento Cards */
-    div[data-testid="stVerticalBlockBorderWrapper"] {{
+    div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 16px !important;
         box-shadow: var(--shadow) !important;
         transition: transform 0.18s ease, border-color 0.18s ease;
-    }}
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
         border-color: #6366F1 !important;
         transform: translateY(-2px);
-    }}
+    }
 
     /* Segmented Pill Tabs */
-    .stTabs [data-baseweb="tab-list"] {{
+    .stTabs [data-baseweb="tab-list"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 14px !important;
         padding: 0.35rem !important;
         gap: 0.4rem !important;
         box-shadow: var(--shadow);
-    }}
-    .stTabs [data-baseweb="tab"] {{
+    }
+    .stTabs [data-baseweb="tab"] {
         color: var(--text-secondary) !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
         padding: 0.5rem 1.05rem !important;
-    }}
-    .stTabs [aria-selected="true"] {{
+    }
+    .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: #FFFFFF !important;
-    }}
+    }
 
     /* Secondary & Primary Buttons */
-    .stButton > button {{
+    .stButton > button {
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-color) !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-    }}
-    .stButton > button:hover {{
+    }
+    .stButton > button:hover {
         border-color: #6366F1 !important;
         color: #6366F1 !important;
-    }}
-    .stButton > button[kind="primary"] {{
+    }
+    .stButton > button[kind="primary"] {
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: #FFFFFF !important;
         border: none !important;
-    }}
+    }
 
     /* Callout & Code Chips */
-    .chosen-box {{
+    .chosen-box {
         background: var(--chosen-bg);
         border-left: 4px solid #10B981;
         color: var(--chosen-text);
@@ -277,8 +284,8 @@ st.markdown(
         font-size: 0.96rem;
         line-height: 1.5;
         margin-bottom: 0.8rem;
-    }}
-    .code-chip {{
+    }
+    .code-chip {
         display: inline-block;
         background: var(--chip-bg);
         color: var(--chip-text);
@@ -288,8 +295,8 @@ st.markdown(
         padding: 0.18rem 0.55rem;
         border-radius: 7px;
         margin: 0.15rem 0.25rem 0.15rem 0;
-    }}
-    .pill-active {{
+    }
+    .pill-active {
         background: rgba(16, 185, 129, 0.14);
         color: #10B981;
         border: 1px solid rgba(16, 185, 129, 0.35);
@@ -297,8 +304,8 @@ st.markdown(
         border-radius: 999px;
         font-size: 0.78rem;
         font-weight: 700;
-    }}
-    .pill-outdated {{
+    }
+    .pill-outdated {
         background: rgba(148, 163, 184, 0.16);
         color: var(--text-secondary);
         border: 1px solid var(--border-color);
@@ -306,7 +313,7 @@ st.markdown(
         border-radius: 999px;
         font-size: 0.78rem;
         font-weight: 700;
-    }}
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -447,7 +454,12 @@ with tab_repo:
 
     source_type = st.radio(
         "Source Type",
-        ["GitHub Repository (Batch Scan)", "Single GitHub Issue / PR", "Discourse Forum Thread"],
+        [
+            "GitHub Repository (Batch Scan)",
+            "Single GitHub Issue / PR",
+            "Discourse Forum Thread",
+            "Public Mailing List Archive",
+        ],
         horizontal=True,
     )
 
@@ -483,16 +495,23 @@ with tab_repo:
                 except Exception as exc:
                     st.error(f"Could not index repository: {exc}")
     else:
-        default_url = (
-            "https://github.com/pallets/flask/issues/4612"
-            if "GitHub" in source_type
-            else "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
-        )
+        if "GitHub" in source_type:
+            default_url = "https://github.com/pallets/flask/issues/4612"
+        elif "Mailing List" in source_type:
+            default_url = "https://mail.python.org/pipermail/python-dev/2021-October/165493.html"
+        else:
+            default_url = "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
+
         url_input = st.text_input("Discussion URL", value=default_url)
         if st.button("📥 Extract Decision", type="primary"):
             with st.spinner("Analyzing discussion..."):
                 try:
-                    posts = fetch_github_discussion(url_input) if "GitHub" in source_type else fetch_discourse_thread(url_input)
+                    if "GitHub" in source_type:
+                        posts = fetch_github_discussion(url_input)
+                    elif "Mailing List" in source_type:
+                        posts = fetch_mailing_list_archive(url_input)
+                    else:
+                        posts = fetch_discourse_thread(url_input)
                     new_posts, skipped = filter_new_or_updated_posts(url_input, posts)
                     out = extract_decisions_from_posts(url_input, posts, provider=provider, api_key=api_key)
                     st.success(f"Saved! ({len(new_posts)} new, {skipped} skipped)")
