@@ -1,0 +1,334 @@
+{
+  "PEP 678": {
+    "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374",
+    "title": "PEP 678: Enriching Exceptions with Notes",
+    "posts": [
+      {
+        "post_uid": "discourse_46392",
+        "author": "Zac-HD",
+        "canonical_id": "user_zachd",
+        "created_at": "2022-01-27T09:29:53.137Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/1",
+        "text": "Python.org PEP 678 -- Enriching Exceptions with Notes The official home of the Python Programming Language"
+      },
+      {
+        "post_uid": "discourse_46400",
+        "author": "notatallshaw",
+        "canonical_id": "user_notatallshaw",
+        "created_at": "2022-01-27T14:08:04.939Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/2",
+        "text": "FYI the helper function discussion was had here between myself and I assume Zac, thanks for writing out an implementation of the helper function."
+      },
+      {
+        "post_uid": "discourse_46439",
+        "author": "barry",
+        "canonical_id": "user_barry",
+        "created_at": "2022-01-28T00:45:22.661Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/3",
+        "text": "From the PEP: code which retries an operation on error may wish to associate an iteration, timestamp, or other explanation with each of several errors - especially if re-raising them in an ExceptionGroup. I mentioned this in the context of __note__ for EG\u2019s but this makes me think of a use case for an object implementing a __str__() .   Say I wanted to capture the number of retries in a note.  My error message might be something like: \"Tried to commit this change 7 times\" Now imagine I need to update this note.  I can\u2019t carry around the number of iterations previously tried, so to increment this I\u2019d have to parse the string to extract the number, increment it, then store the new string on __note__ . Instead a better way to do this would be to.store an object on __note__ that has an API to increment the count, and a __str__() that returns a formatted string containing the count. This is just a thought experiment based on this comment in the PEP.  I don\u2019t have a specific use case in mind, although I can think of a couple of places where this might enhance exception information."
+      },
+      {
+        "post_uid": "discourse_46450",
+        "author": "mattip",
+        "canonical_id": "user_mattip",
+        "created_at": "2022-01-28T07:30:19.915Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/4",
+        "text": "The PEP does not dive into the cost of et another layer of code around handling exceptions, and what to do if that code itself raises an exception. The last comment hints at the possible problems this could entail: what to do about format strings in the __note__ and other ways this feature could be extended/exploited. In the rejected ideas section, there is the possibility to subclass exception in pure python. It seems like this would be something to try out before adding another layer of presentation to exceptions. Has a project implemented this as an interim fix and how did it go?"
+      },
+      {
+        "post_uid": "discourse_46526",
+        "author": "Zac-HD",
+        "canonical_id": "user_zachd",
+        "created_at": "2022-01-29T09:05:36.106Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/5",
+        "text": "@notatallshaw , yep, that was me - I\u2019ll add a link to that discussion in the PEP. @barry , the idiom here would be to raise an ExceptionGroup where the inner exceptions had notes \u201cFirst attempt to commit this change\u201d, \u201cSecond attempt\u2026\u201d, and so on. The attempt count can be tracked as a local variable, or if you want to use it elsewhere you can assign to e.g. an err._n_attempted_commits = 7 attribute on the exception object and avoid parsing! @mattip , avoiding the risk of delayed formatting errors is another good reason to insist that __note__ must be a string or None!  This doesn\u2019t introduce any additional concerns about format strings, because the formatting of the note itself must be finalised before it can be added to the exception, and the traceback code only needs to deal with string as format arguments (which is safe). The runtime cost amounts to an attribute assignment and typecheck if a note is assigned, and one branch in the traceback display code to show it.  This is pretty cheap. My personal motivation for writing this PEP was that I found it was impossible to support satisfactory error reporting in Hypothesis with ExceptionGroup.  Each exception has additional data (such as the minimal failing example), which should remain closely associated.  Currently we just print this information and each respective traceback before raising a MultipleFailures exception, but printing some data and then raising an ExceptionGroup splits up the relevant logs even if none of the inner exceptions are handled without being displayed to the user. I would like backports.exceptiongroup to display __note__ for inner exceptions, but to display at all this has to be part of the exceptiongroup class or traceback-printing code.  The latter seems much more elegant to me, and thus this P"
+      },
+      {
+        "post_uid": "discourse_47164",
+        "author": "encukou",
+        "canonical_id": "user_encukou",
+        "created_at": "2022-02-09T12:27:47.864Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/6",
+        "text": "The PEP was submitted to the SC with a note I don\u2019t see discussed: Why require that __note__ may only be a string or None, instead of any object? Restricting to string-or-None simplifies and stabilizes the API, easing interop and avoiding the risk of delayed errors when calling __str__() . We can also loosen, but not tighten, this constraint without breaking backwards compatibility. Once libraries start depending on __note__ being either str or None , I\u2019m afraid that loosening won\u2019t be much easier than tightening. See the add_exc_note function in the PEP: projects that adopt it would start failing if the constraint is loosened. (I see that as a minor detail, the other arguments are pretty convincing.)"
+      },
+      {
+        "post_uid": "discourse_47181",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T15:16:46.639Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/7",
+        "text": "Since friendly-traceback is mentioned in the PEP, I can say that it would be much more useful for friendly-traceback if we could have something like: __note__ = lambda: _(\"Translatable text\") instead of limiting __note__ to be a string or None."
+      },
+      {
+        "post_uid": "discourse_47189",
+        "author": "barry",
+        "canonical_id": "user_barry",
+        "created_at": "2022-02-09T15:59:25.675Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/8",
+        "text": "In my experience (GNU Mailman was one of the first i18n\u2019d Python applications), translating exception strings isn\u2019t a good idea.  They aren\u2019t generally useful for end users and it makes it much harder to search the internet for help.  To me, __note__ would fall under the same guidelines."
+      },
+      {
+        "post_uid": "discourse_47195",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T16:32:11.815Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/9",
+        "text": "The original motivation for creating friendly-traceback [1] was to provide translations for error messages. That is a main reason why it got the support of the PSF [2].  It is true that friendly-traceback does much more than provide translations, but that is an important part of it. The only reason I mention all this is that the PEP authors deemed it worthwhile to mention friendly-traceback as a possible use case in the PEP. [1] friendly-traceback 0.5.19 [2] Python Software Foundation News: Grants Awarded for Python in Education"
+      },
+      {
+        "post_uid": "discourse_47202",
+        "author": "barry",
+        "canonical_id": "user_barry",
+        "created_at": "2022-02-09T17:27:28.276Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/10",
+        "text": "aroberge: The original motivation for creating friendly-traceback [1] was to provide translations for error messages. Fair enough.  I can see its utility for educational purposes, but I\u2019d be wary of releasing software that included translatable exceptions.  I think it would be difficult to understand bug reports with translated exception messages."
+      },
+      {
+        "post_uid": "discourse_47204",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T17:34:28.865Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/11",
+        "text": "barry: Fair enough. I can see its utility for educational purposes, but I\u2019d be wary of releasing software that included translatable exceptions. I think it would be difficult to understand bug reports with translated exception messages. I actually agree with your for exceptions from Python itself and code in the standard library. I could however see the use for packages like Pygame, and perhaps a third-party version of the Turtle module. With Friendly-traceback, it is already possible for third-party projects to effectively add translatable information to exceptions, much more effectively than the proposed __note__ field. However, very few people know about it. The addition of  a __note__ field might motivate people to look into providing translations for some important information, especially for packages directed at beginners."
+      },
+      {
+        "post_uid": "discourse_47205",
+        "author": "iritkatriel",
+        "canonical_id": "user_iritkatriel",
+        "created_at": "2022-02-09T17:54:56.191Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/12",
+        "text": "I\u2019m not familiar with how the translation works. Is there a reason why the translation cannot happen before the string is assigned to the __note__ ?"
+      },
+      {
+        "post_uid": "discourse_47208",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T18:44:16.989Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/13",
+        "text": "iritkatriel: I\u2019m not familiar with how the translation works. Is there a reason why the translation cannot happen before the string is assigned to the __note__ ? (Apologies for what is becoming a derailment of the original topic.)  Your question is a very good one, which I have not seen discussed before.  Usually, when people translate strings, the translation is done \u201call at once\u201d before the information is shown to a user. The most common example is that of a website: you switch language and you effectively see the entire content in the new language.  However, in some other situations, it makes sense to easily allow to change the language. The approach I use in friendly-traceback is to use \u201con demand\u201d translation.  This allow a user to change language during an interactive session.  Sometimes, either the translation of a particular phrase is not available in their preferred language (say Italian, which is currently on 10% complete) but might be available in a closely related language (like Spanish or perhaps French).  Actual example of a missing translation: Did you forget a colon `:`?\n>>> set_lang('it')  # changing to Italian\n>>> hint()\nDid you forget a colon `:`?\n>>> set_lang('fr')\n>>> hint()\nAvez-vous oubli\u00e9 d'ajouter les deux points `:` ? This type of dynamic translation is not possible when a string is set at the source. And a user would not want to first switch language, then recreate the traceback entirely to be able to understand what was written in the note if the original did not make sense. Commercial products usually only make complete translations available: either your language is entirely supported, or not at all. Open source projects rely on volunteers to provide translations and often partial translations are better than none at all; having the ability"
+      },
+      {
+        "post_uid": "discourse_47211",
+        "author": "iritkatriel",
+        "canonical_id": "user_iritkatriel",
+        "created_at": "2022-02-09T18:54:04.633Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/14",
+        "text": "Could friendly traceback save the original note in another field on the exception (say e._original_note) and then re-translate when a different language is selected as needed?  How does it handle other parts of the traceback, like the exception str()? (No need to apologize, you\u2019re bringing up a valid point)."
+      },
+      {
+        "post_uid": "discourse_47213",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T19:29:26.358Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/15",
+        "text": "Currently, friendly-traceback shows the original error message untranslated. It then uses the exception type and the original message to figure out what other information to give to the user; all this additional information is translatable.  Often, this information will include a rephrasing of the original error message that can be translated. The way I do this, is to painstakingly add one example at a time of different error messages, which I then use a starting point. For runtime errors (as opposed to SyntaxError), I do some frame inspection to determine what objects are in play and try to figure out additional information from there. For SyntaxError, I try to see if I can change one or a few token to transform it into valid syntax. The idea I have is to give a mechanism so that people can add translations to their own exception (via the note field).  I could then have a way to probe to see if there is there might be some translatable content via something like: if hasattr(exc, '__note__') and callable(exc.__note__):\n   info = exc.__note__()\n   # add info to what is given by friendly's why() function\n... The typical pattern would be something like: Exception raised (during interactive session, including IPython, Jupyter, etc.)\n>>> from friendly import why\n>>> set_lang('fr')\n>>> why()  # includes the information from note in French if possible.\n[explanation given here] If they don\u2019t provide translation, then the information is shown as is - unless it is a case that I have already added to the known cases. Since the exception was raised before friendly was imported, the content of the note field has already been set. If it is a function, then it can be potentially translated."
+      },
+      {
+        "post_uid": "discourse_47214",
+        "author": "iritkatriel",
+        "canonical_id": "user_iritkatriel",
+        "created_at": "2022-02-09T19:38:26.407Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/16",
+        "text": "Thank you for explaining all this. Is the info that is returned from the note function in your example supposed to be displayed by python\u2019s built in traceback?  If not, can you design your mechanism to use any other field name on the exception?"
+      },
+      {
+        "post_uid": "discourse_47218",
+        "author": "aroberge",
+        "canonical_id": "user_aroberge",
+        "created_at": "2022-02-09T19:48:37.963Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/17",
+        "text": "iritkatriel: Is the info that is returned from the note function in your example supposed to be displayed by python\u2019s built in traceback? If not, can you design your mechanism to use any other field name on the exception? Yes, I would think that the information in the note function should definitely be shown by Python\u2019s built-in traceback.  Forgetting about friendly-traceback for a moment, I think that this addition of a note field is an excellent idea. As for friendly-traceback, it could make use of any other field name added to the exception. However, I doubt that there would be very much support to add yet more \u201capproved\u201d attributes to the standard Python exception."
+      },
+      {
+        "post_uid": "discourse_47220",
+        "author": "iritkatriel",
+        "canonical_id": "user_iritkatriel",
+        "created_at": "2022-02-09T20:00:51.430Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/18",
+        "text": "I don\u2019t think you need the new field to be approved in any way, you just define it as the friendly traceback api. The only reason we need the note to be approved as part of the language is because we want to change the interpreter\u2019s built in traceback display code to display it."
+      },
+      {
+        "post_uid": "discourse_47226",
+        "author": "barry",
+        "canonical_id": "user_barry",
+        "created_at": "2022-02-09T21:44:27.455Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/19",
+        "text": "A couple of other comments about translations. flufl.i18n is a library I\u2019ve maintained for many years, and which was born from a refactoring of the original GNU Mailman code.  There are basically two ways to think about translations, a \u201csimple\u201d API which supports translating simple applications like CLIs, where there\u2019s only one language context in effect at a time.  There\u2019s another API which is a little more complicated (but I\u2019d argue still elegant) for situations where you can have multiple translation contexts in play at any one time.  In the case Mailman, imagine that you need to translate a page for someone taking an action on a web page, and that action generates a notification to two list owners and a list member.  Now, imagine that all four actors of that action have different preferred languages.  The service is crafting the notification in one place and then needs to send or display that notice in four different languages. flufl.i18n can and does handle this just fine. Remember too that translations often have placeholders where runtime data needs to get interpolated into the post-translation string and that languages can and do reorder those placeholders.  Maybe that data is only available at the point at which the translated string is being used to notify the user. So in general you have to delay both the translation and the substitution as late as possible to the point where you are actually going to use the final translated string. This is a real-world example.  I have no idea whether __note__ as it\u2019s currently defined, or friendly-traceback can or even needs to handle cases like this."
+      },
+      {
+        "post_uid": "discourse_47241",
+        "author": "Zac-HD",
+        "canonical_id": "user_zachd",
+        "created_at": "2022-02-10T09:23:48.777Z",
+        "url": "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/13374/20",
+        "text": "@encukou : Once libraries start depending on __note__ being either str or None , I\u2019m afraid that loosening won\u2019t be much easier than tightening. See the add_exc_note function in the PEP: projects that adopt it would start failing if the constraint is loosened. You\u2019re correct of course, Hyrum\u2019s Law is a harsh master @aroberge , thank you for your detailed comments on translation.  I really appreciate your (and @barry \u2019s) input, since I know relatively little about this. Would it make sense to attach the __note__ as a string with the then-current language settings, and an additional e.g. _friendly_note attribute with the translatable string?  This would show the best-guess translated note, but on set_lang() you could clear the current note and either re-translate it, or wait for the user to call why() .  I don\u2019t have much sense of whether this convenience-vs-rigidity would be an improvement overall though. You also mention that \u201cthird-party projects to effectively add translatable information to exceptions, much more effectively than the proposed __note__ field. However, very few people know about it.\u201d.  I\u2019d love to hear more!  If you mean Registering custom error types - friendly-traceback 0.7.53 , I don\u2019t think this can replace __note__ without an equivalent way to attach extra information beyond the exception type. However, since friendly-traceback was mentioned in the PEP, I couldn\u2019t leave the impression that having the note field be a simple string was really the best option for friendly-traceback. If you would prefer, I\u2019m happy to remove the mention of friendly-traceback or to add a caveat such as \u201c(e.g. friendly-traceback, albeit without translations)\u201d. Overall, I\u2019d prefer not to incur the complexity of deferring note evaluation to support translations, on the basi"
+      }
+    ]
+  },
+  "PEP 703": {
+    "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606",
+    "title": "PEP 703: Making the Global Interpreter Lock Optional",
+    "posts": [
+      {
+        "post_uid": "discourse_80646",
+        "author": "ambv",
+        "canonical_id": "user_ambv",
+        "created_at": "2023-01-10T16:08:09.249Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/1",
+        "text": "Hi As the sponsor of @colesbury \u2019s PEP, I\u2019d like to invite you all to discuss the proposal to solve the biggest scalability limitation of CPython by making it possible to build a version of the interpreter which doesn\u2019t use the Global Interpreter Lock. The document is somewhat of a demanding read as it\u2019s one of the top 10 longest PEPs. That was to be expected though as the problem goes back decades and requires nuance, trade-offs, and careful consideration of alternatives. Thanks in advance for your time reading the PEP and iterating on it with us. Our hope with this PEP is to get a definitive answer to the GIL question once and for all. We look forward to your feedback! \u2013 Sam Gross and \u0141ukasz Langa See the latest version of the PEP Python Enhancement Proposals (PEPs) PEP 703 \u2013 Making the Global Interpreter Lock Optional in CPython |... CPython\u2019s global interpreter lock (\u201cGIL\u201d) prevents multiple threads from executing Python code at the same time.  The GIL is an obstacle to using multi-core CPUs from Python efficiently.  This PEP proposes adding a build configuration (--disable-gil)... ( python.org uses aggressive front-end caching so you might need to refresh the page your browser to see latest changes)"
+      },
+      {
+        "post_uid": "discourse_80651",
+        "author": "ajoino",
+        "canonical_id": "user_ajoino",
+        "created_at": "2023-01-10T16:39:47.751Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/2",
+        "text": "Exciting stuff!"
+      },
+      {
+        "post_uid": "discourse_80669",
+        "author": "cirospaciari",
+        "canonical_id": "user_cirospaciari",
+        "created_at": "2023-01-10T17:28:30.381Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/3",
+        "text": "awesome news!"
+      },
+      {
+        "post_uid": "discourse_80672",
+        "author": "ambv",
+        "canonical_id": "user_ambv",
+        "created_at": "2023-01-10T17:31:53.865Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/4",
+        "text": "I\u2019m happy to see enthusiasm for the PEP. However, please note that on Discourse we avoid posts to show support / agree with the previous poster. Instead, we use the reactions: Screen Shot 2023-01-10 at 18.30.10 1824\u00d71816 152 KB Please use those instead. Thanks!"
+      },
+      {
+        "post_uid": "discourse_80689",
+        "author": "barry-scott",
+        "canonical_id": "user_barryscott",
+        "created_at": "2023-01-10T19:29:02.654Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/5",
+        "text": "Thanks you for a clear PEP for such a technically complex change! I am the PyCXX maintainer. I think I may need to know if PYCXX needs to use \u2014without-gil safe APIs. Is there a C define that I can test? Found it: Py_NOGIL Or maybe PyCXX always uses the safe APIs starting with the first release of python with this implemented. If a C extension uses an unsafe API will I get a compiler error?"
+      },
+      {
+        "post_uid": "discourse_80717",
+        "author": "h-vetinari",
+        "canonical_id": "user_hvetinari",
+        "created_at": "2023-01-10T21:51:04.485Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/6",
+        "text": "Congratulations on this PEP! This proposed immortalization scheme is very similar to PEP 683, but with slightly different bit representation in the reference count fields for immortal objects in order to work with biased reference counting and deferred reference counting. I\u2019m surprised to see this diverge from existing efforts in the same direction. Is it impossible to make nogil work with PEP 683 semantics, should PEP 683 be modified, or what are the trade-offs (performance?) if PEP 683 were used as is? Another point that struck me is that, despite investing a lot of digital ink into testimonials, the motivation is almost exclusively ML/AI and scientific computing. I imagine it\u2019s hard to capture the vast volume of discussions on this topic, but my impression is that it does a disservice to the PEP to not cover the impact on other usecases as well, especially considering how the addition of another build mode / ABI will create enormous pressure for all extension library authors to support it. In fact, I suspect that pressure would be so high that there wouldn\u2019t be much of a difference to just declaring it as the new default, which then leaves all of the downsides of building everything twice, with few of the benefits of having a build option in the first place [1] . Perhaps it might be better to just use this as a \u201cPython 4.0\u201d event, which would at least give library authors something to point to \u00e0 la \u201ca lot of things changed and we\u2019ll need some time to adapt our library to it\u201d. \u21a9\ufe0e"
+      },
+      {
+        "post_uid": "discourse_80724",
+        "author": "barry-scott",
+        "canonical_id": "user_barryscott",
+        "created_at": "2023-01-10T22:36:34.956Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/7",
+        "text": "I use case i have at work is a service that uses multi process because of the gil issue. It handles high volumes of http requests and needed to compute for the requests. This PEP would allow us to use a multi threaded server where we can exploit all the cores on our xeon\u2019s and have the service scale with CPU cores."
+      },
+      {
+        "post_uid": "discourse_80740",
+        "author": "jeanas",
+        "canonical_id": "user_jeanas",
+        "created_at": "2023-01-10T23:38:57.092Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/8",
+        "text": "\u0141ukasz Langa: However, please note that on Discourse we avoid posts to show support / agree with the previous poster. Instead, we use the reactions: The problem is that there\u2019s no way to express a stronger excitement than just \u201clike\u201d Minor note: perhaps the PEP should say what happens to the generation argument of gc.collect ."
+      },
+      {
+        "post_uid": "discourse_80741",
+        "author": "methane",
+        "canonical_id": "user_methane",
+        "created_at": "2023-01-11T00:07:10.583Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/9",
+        "text": "Excellent work. This is nitpick but I don\u2019t like --with(out)-gil option. --with option usually used for external dependency. Since we don\u2019t need --with-gil=/path/to/libgil , I prefer --enable-gil / --disable-gil option. See 3.\u00a0Adding Options for reference. --enable-* / --disable-* arguments The arguments starting with \u2013enable- prefix are usually used to enable features of the program. They usually add or remove dependencies only if they are needed for that particular feature being enabled or disabled. --with-* / --without-* arguments The arguments starting with \u2013with- prefix are usually used to add or remove dependencies on external projects. These might add or remove features from the project."
+      },
+      {
+        "post_uid": "discourse_80756",
+        "author": "gregington",
+        "canonical_id": "user_gregington",
+        "created_at": "2023-01-11T02:47:47.001Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/10",
+        "text": "The Python Critical Sections part of the document describes how threads can only hold a single lock at a time to avoid deadlocks, where existing locks are released when a new lock is acquired. If multiple locks are taken to ensure mutual consistency across multiple resources, is it possible that a second thread can acquire a released lock and make changes that are inconsistent with the work performed by the first thread? At first glance, this has the potential to violate program correctness in a multithreaded environment."
+      },
+      {
+        "post_uid": "discourse_80767",
+        "author": "colesbury",
+        "canonical_id": "user_colesbury",
+        "created_at": "2023-01-11T05:08:41.451Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/11",
+        "text": "Barry Scott: Or maybe PyCXX always uses the safe APIs starting with the first release of python with this implemented. If a C extension uses an unsafe API will I get a compiler error? Hi Barry - I think you are referring to PyDict_GetItem vs. PyDict_FetchItem (and the list object equivalents). Let me know if you are referring to something else. For general context: the proposed new APIs ( PyDict_FetchItem ) return \u201cnew references\u201d. The existing APIs (e.g., PyDict_GetItem ) return \u201cborrowed references.\u201d  The borrowed references are sometimes unsafe without the GIL, such as when another thread might concurrently modify the container. The PEP does not propose making the borrowed reference versions a compile error (nor does it deprecate them). This for a few reasons: Many of the uses of PyDict/List_GetItem are safe even without the GIL. For example, accessing kwargs with PyDict_GetItem is safe because the kwargs generally cannot be modified by another thread. I tried this approach briefly early on, and, in my experience, wholesale replacing \u201cborrowed references\u201d with \u201cnew references\u201d in existing code made it too easy to introduce new reference counting bugs. I think the risk of introducing new reference counting bugs generally outweighs the risks of missing a PyDict/List_GetItem call that\u2019s unsafe without the GIL. That said, extension authors know their own code best, so if someone wants to replace PyDict_GetItem with PyDict_FetchItem they certainly can do so. I\u2019ll add this reasoning to the PEP."
+      },
+      {
+        "post_uid": "discourse_80778",
+        "author": "colesbury",
+        "canonical_id": "user_colesbury",
+        "created_at": "2023-01-11T06:06:26.305Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/12",
+        "text": "H. Vetinari: I\u2019m surprised to see this diverge from existing efforts in the same direction. Is it impossible to make nogil work with PEP 683 semantics, should PEP 683 be modified, or what are the trade-offs (performance?) if PEP 683 were used as is? PEP 683 tries to be compatible with the stable ABI (abi3) and makes some trade-offs to support that, such as putting the immortal bit as the 2nd highest bit. You could make this PEP look more like a bit more like PEP 683 (by placing the immortal bit in the same spot), but I think it would only be superficial similarity because this PEP depends on biased reference counting (there are two reference counting fields instead of one), so the overall reference counting scheme is going to be different regardless. On x86-64, using one of the low bits instead of the 2nd highest bit makes checking if an object is immortal a teeny bit faster. I don\u2019t think PEP 683 should be changed \u2013 I think it\u2019s a good solution given the constraints of ABI stability. I\u2019ll wait a bit to see if there are more comments on immortalization and then try to summarize this in the PEP. Regarding motivation: I\u2019m hoping that people that use Python for the many other use cases not mentioned in the PEP can weigh in here about either the problems the GIL poses for them or with their concerns about this PEP.  To the extent that there are common themes, I\u2019ll try to capture them in the PEP. Regarding the build modes: I wrote this in the PEP, but my hope is for the two build modes to be temporary. I think having two build modes \u2013 for a short period \u2013 is worthwhile because it reduces the risks during integration into CPython and gives a bit more time for extensions to adapt. I don\u2019t really see the build modes as a means for extension authors to \u201copt-out\u201d of supporting it"
+      },
+      {
+        "post_uid": "discourse_80780",
+        "author": "colesbury",
+        "canonical_id": "user_colesbury",
+        "created_at": "2023-01-11T06:10:07.329Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/13",
+        "text": "Inada Naoki: I prefer --enable-gil / --disable-gil option. I like --enable-gil / --disable-gil too. I\u2019ll wait a bit to see if there are additional comments on the build option naming and then update the PEP."
+      },
+      {
+        "post_uid": "discourse_80782",
+        "author": "petersuter",
+        "canonical_id": "user_petersuter",
+        "created_at": "2023-01-11T07:10:04.797Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/14",
+        "text": "What is the impact on packaging, wheel tags, PyPI, pip, python org installers etc.?"
+      },
+      {
+        "post_uid": "discourse_80783",
+        "author": "h-vetinari",
+        "canonical_id": "user_hvetinari",
+        "created_at": "2023-01-11T07:14:55.118Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/15",
+        "text": "Thanks for the response! Sam Gross: PEP 683 tries to be compatible with the stable ABI (abi3) and makes some trade-offs to support that, such as putting the immortal bit as the 2nd highest bit. [\u2026] I don\u2019t think PEP 683 should be changed \u2013 I think it\u2019s a good solution given the constraints of ABI stability. So if I\u2019m reading this (and the PEP) correctly: nogil needs both biased & deferred reference counting (for thread safety resp. performance) nogil needs a break of the stable ABI [1] it\u2019s thus independent of PEP 683, but would replace(?) PEP 683\u2019s changes in this space with its own Sam Gross: Regarding the build modes: I wrote this in the PEP, but my hope is for the two build modes to be temporary. I think having two build modes \u2013 for a short period \u2013 is worthwhile because it reduces the risks during integration into CPython and gives a bit more time for extensions to adapt. Not to nitpick, but the linked section says \u201cThese may be worthwhile if a longer term goal is to have a single build mode\u201d, which is\u2026 at odds\u2026 with \u201cfor a short period\u201d. BTW, this choice is a really hard problem, and it\u2019s fine that the PEP doesn\u2019t really commit to a timeline, but IMO those trade-offs (additional build mode \u2013 what would that imply over short/long term? \u2013 or new default) could use some more discussion. Sam Gross: I don\u2019t really see the build modes as a means for extension authors to \u201copt-out\u201d of supporting it, although it\u2019s possible it\u2019s used that way. Like you, I think there will be pressure from users on extension authors to support it, and I think that pressure will be because the users see value in running without the GIL. I absolutely see libraries opting out of this, at least for a while (e.g. \u201cmaking our library threadsafe needs a large overhaul of core component X, and we\u2019ll"
+      },
+      {
+        "post_uid": "discourse_80787",
+        "author": "encukou",
+        "canonical_id": "user_encukou",
+        "created_at": "2023-01-11T08:49:45.859Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/16",
+        "text": "This would place a huge burden on authors of third-party C-API extensions. I don\u2019t see how we could have nogil without a situation similar to the Python 2\u21923 transition \u2013 two incompatible versions of Python existing in parallel for a long time."
+      },
+      {
+        "post_uid": "discourse_80793",
+        "author": "ashbt",
+        "canonical_id": "user_ashbt",
+        "created_at": "2023-01-11T09:53:00.891Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/17",
+        "text": "In CPython Free Lists you mention that freelists will be disabled when building without the GIL \u2013 is there a reason to not have a pre-thread freelist instead? Oh, because allocations are global, and a pre thread list just doesn\u2019t really make sense. Sorry, I haven\u2019t had enough coffee yet"
+      },
+      {
+        "post_uid": "discourse_80795",
+        "author": "ashbt",
+        "canonical_id": "user_ashbt",
+        "created_at": "2023-01-11T09:54:20.590Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/18",
+        "text": "Jean Abou Samra: Minor note: perhaps the PEP should say what happens to the generation argument of gc.collect . In Garbage Collection (Cycle Collection) it says Elimination of generational garbage collection in favor of non-generational collector."
+      },
+      {
+        "post_uid": "discourse_80797",
+        "author": "mattip",
+        "canonical_id": "user_mattip",
+        "created_at": "2023-01-11T09:59:40.340Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/19",
+        "text": "H. Vetinari: it falls back to trying to install from source) There is a proposal to change this.  Maybe there should be an explicit section of the PEP to discuss implications for c-extension library authors. In any case, the Distribution section should be extended to describe what resources lie behind the statement below. Has this been discussed with Anaconda (maybe the author means \u201cthe conda-forge community\u201d, which maintains the cutting-edge versions of packages like NumPy)? Will the conda package be a fork of the upstream package or does it depend on the package maintainers to do the work? the author will work with Anaconda to distribute a --without-gil version of Python\"."
+      },
+      {
+        "post_uid": "discourse_80803",
+        "author": "ashbt",
+        "canonical_id": "user_ashbt",
+        "created_at": "2023-01-11T10:29:07.931Z",
+        "url": "https://discuss.python.org/t/pep-703-making-the-global-interpreter-lock-optional/22606/20",
+        "text": "Somewhat relatedly, this came up in my feed today about a similar issue in bind Safe memory reclamation for BIND \u2013 Tony Finch and it talks about https://liburcu.org/ (which is LGPL\u2019d, so I suspect not of use to Python core.)"
+      }
+    ]
+  }
+}

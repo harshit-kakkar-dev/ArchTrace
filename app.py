@@ -712,13 +712,13 @@ with tab_bench:
     benchmark = SAMPLE_PEP_BENCHMARKS[selected_pep]
 
     c_run, c_live = st.columns([1, 2])
-    fetch_live = c_live.checkbox("Fetch live thread from discuss.python.org", value=False)
+    fetch_live = c_live.checkbox("Fetch live thread from discuss.python.org (uncheck to use cached real posts)", value=True)
     if c_run.button("🚀 Run Blind Benchmark", type="primary"):
         with st.spinner("Extracting decisions (PEP hidden)..."):
             try:
-                posts = fetch_discourse_thread(benchmark["discourse_url"], max_posts=25) if fetch_live else benchmark["synthetic_discussion_posts"]
+                posts = fetch_discourse_thread(benchmark["discourse_url"], max_posts=25) if fetch_live else benchmark["cached_real_posts"]
             except Exception:
-                posts = benchmark["synthetic_discussion_posts"]
+                posts = benchmark["cached_real_posts"]
 
             new_posts, skipped = filter_new_or_updated_posts(benchmark["discourse_url"], posts)
             extracted = extract_decisions_from_posts(benchmark["discourse_url"], posts, provider=provider, api_key=api_key)
