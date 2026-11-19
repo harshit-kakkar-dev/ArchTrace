@@ -1,74 +1,83 @@
-# ArchTrace
-# 🏛️ ArchTrace — Recovering Unwritten Architectural Decisions
+Markdown
+# 🧭 ArchTrace
 
-**ArchTrace** mines public engineering discussions (GitHub Issues, Pull Requests, and Discourse forums), extracts architectural decisions alongside **rejected alternatives and verifiable source citations**, links them to **rename-resilient code paths and AST symbols**, and automatically surfaces relevant history when new Pull Requests touch that code[cite: 9, 10].
+**Institutional Memory & Unwritten Decision Recovery for Open Source**
+
+ArchTrace extracts the architectural decisions, rejected alternatives, and engineering rationale buried across GitHub Issues, Pull Requests, Discourse forums, and public mailing list archives. It links each recovered decision to the exact source files and AST symbols it governs—surviving file moves and renames—and automatically guards new Pull Requests with self-improving episodic memory.
 
 ---
 
-## 🏗️ System Architecture
+## ✨ Key Capabilities
+
+1. **Multi-Source Discussion Ingestion (`src/archtrace/ingestion.py`)**
+   - Ingests public discussions from **GitHub Issues & Pull Requests** (both single threads and batch repository scans), **Discourse forums** (`discuss.python.org`), and **Public Mailing List Archives** (`mail.python.org` Pipermail `.txt` and HTML).
+   - Uses **SHA-256 content hashing** (`processed_posts` table) to skip unchanged posts during incremental updates rather than reprocessing entire repositories.
+
+2. **Open-Weight Decision & Rejected-Alternative Extraction (`src/archtrace/extractor.py`)**
+   - Extracts structured JSON containing the **chosen decision**, **rationale**, **rejected alternatives**, **author handles**, **verbatim quotes**, and **affected files/symbols**.
+   - Auto-discovers active open-weight models via Groq or OpenRouter (`openai/gpt-oss-120b`, Llama 3.3, Qwen) and falls back cleanly to an offline heuristic extractor when no API key is configured.
+
+3. **Rename-Resilient Code Linking & AST Symbol Tracking (`src/archtrace/git_tracker.py`)**
+   - Tracks file moves and renames transitively via `git log --diff-filter=R` (`file_renames` table) so historical decisions remain attached even after refactoring.
+   - Parses Python diffs using the built-in `ast` module to match modified functions, classes, and attributes against stored decision symbols.
+
+4. **Cross-Platform Contributor Identity Resolution (`src/archtrace/identity.py`)**
+   - Unifies contributors across GitHub, Discourse, and mailing lists using email matching, handle normalization, and display-name fuzzy similarity.
+
+5. **Automated GitHub Action PR Guardian & Episodic Memory (`src/archtrace/pr_bot.py`)**
+   - Runs automatically on Pull Requests via `.github/workflows/archtrace-pr-bot.yml` to warn contributors when a diff touches code or symbols tied to previously rejected approaches, complete with verbatim quotes and clickable source URLs.
+   - Supports maintainer feedback commands (`/archtrace helpful` and `/archtrace obsolete`) stored in `pr_feedback_memory` to reinforce valid rules and suppress outdated alerts.
+
+6. **Blind PEP Evaluation Benchmark (`src/archtrace/benchmarks.py`)**
+   - Evaluates decision recovery against Python Enhancement Proposals (**PEP 678** and **PEP 851**) by feeding only the raw discussion thread while withholding the official PEP document—achieving **100.0% blind rejected-idea recall** on PEP 678.
+
+---
+
+## 🏗️ Project Architecture
 
 ```text
-┌──────────────────────┐   ┌──────────────────────────┐
-│ GitHub Issues & PRs  │   │ Discourse (.json API)    │
-└──────────┬───────────┘   └────────────┬─────────────┘
-           └──────────────┬─────────────┘
-                          ▼
-         ┌─────────────────────────────────┐
-         │ Incremental Sync & Identity     │  <-- SHA-256 content hashes +
-         │ Resolver (`ingestion.py`,       │      cross-platform handle/name matching
-         │ `identity.py`)                  │
-         └────────────────┬────────────────┘
-                          ▼
-         ┌─────────────────────────────────┐
-         │ Open-Weight Decision Extractor  │  <-- Llama 3.1 8B (Groq / OpenRouter)
-         │ (`extractor.py`)                │      extracts Decisions, Rejected Ideas,
-         └────────────────┬────────────────┘      Verbatim Quotes & Post URLs
-                          ▼
-         ┌─────────────────────────────────┐
-         │ Rename-Resilient Knowledge DB   │  <-- SQLite + `git log --diff-filter=R`
-         │ & Episodic PR Memory            │      + Python `ast` symbol matching
-         └────────────────┬────────────────┘
-                          ▼
-         ┌─────────────────────────────────┐
-         │ GitHub Action PR Bot & UI       │  <-- Comments on PRs + learns from
-         │ (`pr_bot.py`, `app.py`)         │      `/archtrace helpful|obsolete`
-         └─────────────────────────────────┘
-```
-
----
-
-## 🧠 Design Questions & Engineering Trade-Offs
-
-1. **Connecting the same person across platforms (`src/archtrace/identity.py`)**[cite: 9]
-   - **Approach:** Deterministic normalization + tiered similarity matching (exact email/handle = `1.0`, normalized display name = `0.92`, fuzzy `SequenceMatcher >= 0.84`)[cite: 9].
-   - **Trade-off:** High precision without requiring private OAuth tokens; avoids false merges on short common usernames by enforcing an `0.84` threshold.
-2. **Incremental updates without reprocessing (`src/archtrace/ingestion.py`)**[cite: 9]
-   - **Approach:** Every post is fingerprinted with a `SHA-256` hash in SQLite (`ingested_posts`)[cite: 9]. Unchanged comments are skipped in $O(1)$ lookup time.
-   - **Trade-off:** Edited posts automatically trigger re-extraction because their SHA-256 digest changes, while unchanged threads incur zero LLM token cost.
-3. **Surviving file moves and renames (`src/archtrace/git_tracker.py`)**[cite: 9]
-   - **Approach:** Automatically parses `git log --diff-filter=R --summary` to build a transitive rename graph (`old_path <-> new_path`), paired with Python `ast` symbol extraction on PR diffs[cite: 9, 10].
-   - **Trade-off:** Using Python's `ast` module avoids false positives from comments/docstrings while gracefully falling back to token scanning on partial diff hunks.
-4. **Verifiable provenance over blind trust (`src/archtrace/extractor.py`)**[cite: 9]
-   - **Approach:** Every extracted decision and rejected idea stores the direct post URL and verbatim quote from the original author[cite: 9].
-5. **Self-improving PR memory (`src/archtrace/git_tracker.py`)**[cite: 10]
-   - **Approach:** Maintainer feedback (`/archtrace helpful` or `/archtrace obsolete`) is stored in `pr_feedback_memory`, dynamically suppressing outdated decisions on future PRs[cite: 10].
-
----
-
-## 🚀 Quickstart
-
-```bash
-# 1. Create virtual environment & install dependencies
+ArchTrace/
+├── app.py                                   # Streamlit Contributor Explorer, Repo Indexer, PR Simulator & Benchmark UI
+├── src/archtrace/
+│   ├── __init__.py
+│   ├── db.py                                # SQLite schema, decision deduplication & episodic PR feedback memory
+│   ├── identity.py                          # Cross-platform contributor identity resolution
+│   ├── ingestion.py                         # GitHub REST, Discourse JSON & Pipermail archive connectors + SHA-256 sync
+│   ├── extractor.py                         # Auto-discovering open-weight LLM extractor + offline heuristic fallback
+│   ├── git_tracker.py                       # Transitive Git rename lineage, AST symbol analysis & ranked keyword search
+│   ├── pr_bot.py                            # Automated PR diff analyzer & GitHub comment formatter
+│   └── benchmarks.py                        # Blind PEP 678 & PEP 851 evaluation suite and recall scorer
+├── tests/
+│   └── test_archtrace.py                    # Pytest suite covering identity, incremental hashing & rename resilience
+├── .github/workflows/archtrace-pr-bot.yml   # GitHub Actions CI workflow for automated PR decision checks
+└── requirements.txt
+🚀 Quickstart
+1. Clone & Install Dependencies
+Bash
+git clone [https://github.com/harshit-kakkar-dev/ArchTrace.git](https://github.com/harshit-kakkar-dev/ArchTrace.git)
+cd ArchTrace
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+2. Configure Optional Open-Weight LLM API Key
+Create a .env file in the project root (optional—ArchTrace works out of the box in offline heuristic mode without a key):
 
-# 2. (Optional) Configure free open-weight LLM key (Groq / OpenRouter)
-export LLM_API_KEY="gsk_your_free_groq_key"
-
-# 3. Run automated tests
-pytest -v
-
-# 4. Launch the interactive dashboard
+Code snippet
+LLM_API_KEY=your_groq_or_openrouter_api_key
+3. Launch the Web Dashboard
+Bash
 streamlit run app.py
-```
+Open http://localhost:8501 to explore:
+
+🧭 Contributor Explorer: Natural-language & symbol search, codebase decision hotspots, side-by-side Chosen vs. Rejected briefs, and one-click ADR (.md) export.
+
+📥 Index Repository: Batch-scan public GitHub repos or extract decisions from single GitHub Issues/PRs, Discourse threads, or mailing list archives.
+
+🤖 PR Guardian & Team: Simulate rename-aware PR checks, record episodic feedback, and inspect unified cross-platform contributor identities.
+
+🧪 Blind Benchmark: Run blind rejected-idea recall tests on Python PEPs.
+
+🧪 Running Automated Tests
+Bash
+source venv/bin/activate
+python -m pytest -v
