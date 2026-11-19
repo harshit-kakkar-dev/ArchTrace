@@ -74,19 +74,19 @@ Bash
 streamlit run app.py
 Open http://localhost:8501 to explore:
 
-#🧭 Contributor Explorer: 
+# 🧭 Contributor Explorer: 
 Natural-language & symbol search, codebase decision hotspots, side-by-side Chosen vs. Rejected briefs, and one-click ADR (.md) export.
 
-#📥 Index Repository: 
+# 📥 Index Repository: 
 Batch-scan public GitHub repos or extract decisions from single GitHub Issues/PRs, Discourse threads, or mailing list archives.
 
-#🤖 PR Guardian & Team: 
+# 🤖 PR Guardian & Team: 
 Simulate rename-aware PR checks, record episodic feedback, and inspect unified cross-platform contributor identities.
 
-#🧪 Blind Benchmark: 
+# 🧪 Blind Benchmark: 
 Run blind rejected-idea recall tests on Python PEPs.
 
-#🧪 Running Automated Tests
+# 🧪 Running Automated Tests
 Bash
 source venv/bin/activate
 python -m pytest -v
