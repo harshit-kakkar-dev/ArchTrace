@@ -131,7 +131,9 @@ def fetch_github_repo_threads(
     if gh_token:
         headers["Authorization"] = f"Bearer {gh_token}"
 
-    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=all&sort=comments&direction=desc&per_page={max_threads}"    resp.raise_for_status()
+    list_api = f"https://api.github.com/repos/{owner}/{repo}/issues?state=all&sort=comments&direction=desc&per_page={max_threads}"
+    resp = requests.get(list_api, headers=headers, timeout=20)
+    resp.raise_for_status()
 
     threads: List[Dict] = []
     for item in resp.json():
