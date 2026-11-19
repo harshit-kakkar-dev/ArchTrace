@@ -29,35 +29,170 @@ from archtrace.ingestion import (
 
 load_dotenv()
 st.set_page_config(
-    page_title="ArchTrace — Contributor Decision Guide",
+    page_title="ArchTrace — Open-Source Decision Guide",
     page_icon="🧭",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 init_db()
 
-# Subtle visual polish
+# Vibrant custom CSS + strict semantic typography
 st.markdown(
     """
     <style>
-    .block-container { padding-top: 2rem; max-width: 1150px; }
-    .hero-box {
-        background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08));
-        border: 1px solid rgba(128,128,128,0.2);
-        border-radius: 14px;
-        padding: 1.4rem 1.8rem;
-        margin-bottom: 1.2rem;
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .hero-title { font-size: 1.85rem; font-weight: 700; margin-bottom: 0.25rem; }
-    .hero-sub { font-size: 1.02rem; opacity: 0.85; margin-bottom: 0; }
+    .block-container {
+        padding-top: 1.75rem;
+        padding-bottom: 3rem;
+        max-width: 1180px;
+    }
+    /* Hide Streamlit default deploy chrome for cleaner demo */
+    #MainMenu { visibility: hidden; }
+    footer { visibility: hidden; }
+
+    /* Vibrant Hero Banner */
+    .hero-banner {
+        background: linear-gradient(125deg, #1E1B4B 0%, #312E81 45%, #0F766E 100%);
+        border: 1px solid rgba(129, 140, 248, 0.35);
+        border-radius: 18px;
+        padding: 1.8rem 2.2rem;
+        margin-bottom: 1.4rem;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, 0.45);
+    }
+    .hero-pill {
+        display: inline-block;
+        background: rgba(255, 255, 255, 0.14);
+        color: #E0E7FF;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        margin-bottom: 0.65rem;
+    }
+    .hero-banner h1 {
+        color: #FFFFFF !important;
+        font-size: 2.05rem !important;
+        font-weight: 800 !important;
+        line-height: 1.2 !important;
+        margin: 0 0 0.45rem 0 !important;
+    }
+    .hero-banner p {
+        color: #CBD5E1;
+        font-size: 1.02rem;
+        line-height: 1.55;
+        margin: 0;
+        max-width: 820px;
+    }
+
+    /* Section Headings (H2) */
+    h2.section-heading {
+        font-size: 1.45rem !important;
+        font-weight: 700 !important;
+        color: #F8FAFC !important;
+        margin-top: 0.35rem !important;
+        margin-bottom: 0.2rem !important;
+    }
+    p.section-sub {
+        color: #94A3B8;
+        font-size: 0.95rem;
+        margin-bottom: 1.1rem;
+    }
+
+    /* Decision Card Headings (H3 & H4) */
+    h3.card-title {
+        font-size: 1.2rem !important;
+        font-weight: 700 !important;
+        color: #F8FAFC !important;
+        margin: 0 !important;
+    }
+    h4.col-heading-chosen {
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #34D399 !important;
+        margin: 0 0 0.5rem 0 !important;
+    }
+    h4.col-heading-rejected {
+        font-size: 0.95rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #FB7185 !important;
+        margin: 0 0 0.5rem 0 !important;
+    }
+
+    /* Status & Tag Pills */
+    .status-active {
+        background: rgba(16, 185, 129, 0.16);
+        color: #34D399;
+        border: 1px solid rgba(52, 211, 153, 0.35);
+        padding: 0.22rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .status-outdated {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94A3B8;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 0.22rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .chosen-callout {
+        background: rgba(16, 185, 129, 0.1);
+        border-left: 4px solid #10B981;
+        padding: 0.85rem 1rem;
+        border-radius: 0 10px 10px 0;
+        color: #ECFDF5;
+        font-size: 0.96rem;
+        margin-bottom: 0.75rem;
+    }
+    .code-chip {
+        display: inline-block;
+        background: rgba(99, 102, 241, 0.16);
+        color: #C7D2FE;
+        border: 1px solid rgba(129, 140, 248, 0.25);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        margin: 0.15rem 0.25rem 0.15rem 0;
+    }
+
+    /* Tab Bar Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0.5rem;
+        background-color: #131A2A;
+        padding: 0.4rem;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
+        color: #FFFFFF !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Collapsed Sidebar for Judges / Maintainers
+# Collapsed Sidebar for Maintainer & Model Controls
 with st.sidebar:
-    st.header("⚙️ Engine & Model Settings")
+    st.markdown("### ⚙️ Engine & Model Settings")
     provider = st.selectbox(
         "LLM Provider",
         [
@@ -72,22 +207,23 @@ with st.sidebar:
         api_key = st.text_input("API Key (Groq / OpenRouter)", value=default_key, type="password")
         st.caption("Auto-discovers active open-weight models; falls back offline if blank.")
 
-    with st.expander("📐 Under the Hood (For Judges)"):
+    with st.expander("📐 Architecture Specs (For Judges)"):
         st.markdown(
-            "- **Blind Evaluation:** Recovers rejected ideas without seeing PEP docs\n"
+            "- **Blind Evaluation:** Recovers rejected ideas without seeing PEP text\n"
             "- **Incremental Sync:** SHA-256 hashing skips unchanged comments\n"
             "- **Rename Tracking:** `git log --diff-filter=R` + Python `ast` symbols\n"
             "- **Episodic Memory:** Learns from `/archtrace helpful|obsolete`"
         )
 
-# Welcoming Hero Header
+# Semantic H1 Hero Banner
 st.markdown(
     """
-    <div class="hero-box">
-        <div class="hero-title">🧭 ArchTrace — Understand Why Code Was Built This Way</div>
-        <p class="hero-sub">
-            New to the project? Search any feature, file, or idea before opening a Pull Request to see
-            past architectural decisions, rejected approaches, and original maintainer discussions.
+    <div class="hero-banner">
+        <span class="hero-pill">🧭 Open-Source Institutional Memory</span>
+        <h1>ArchTrace: Understand Why Code Was Built This Way</h1>
+        <p>
+            New to the codebase? Search any feature, file, or idea before opening a Pull Request to see
+            past architectural decisions, rejected alternatives, and original maintainer discussions.
         </p>
     </div>
     """,
@@ -95,33 +231,38 @@ st.markdown(
 )
 
 tab_guide, tab_repo, tab_pr, tab_bench = st.tabs([
-    "🧭 Contributor Decision Explorer",
-    "📥 Index Any Repository",
-    "🤖 PR Guardian & Contributors",
-    "🧪 Accuracy Benchmark",
+    "🧭 Contributor Explorer",
+    "📥 Index Repository",
+    "🤖 PR Guardian & Team",
+    "🧪 Blind Benchmark",
 ])
 
 # =====================================================================
 # TAB 1: CONTRIBUTOR-FIRST DECISION EXPLORER
 # =====================================================================
 with tab_guide:
-    st.markdown("#### 💡 Try a quick search or type your own question below")
-    p_col1, p_col2, p_col3, p_col4 = st.columns(4)
-    if p_col1.button("🔍 Exception `__notes__`", use_container_width=True):
+    st.markdown('<h2 class="section-heading">Explore Past Architectural Decisions</h2>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-sub">Click a quick topic below or search by feature, file path (including renamed files), or function name.</p>',
+        unsafe_allow_html=True,
+    )
+
+    p1, p2, p3, p4 = st.columns(4)
+    if p1.button("✨ Exception `__notes__`", use_container_width=True):
         st.session_state["search_box"] = "__note__"
-    if p_col2.button("🔍 `list.discard()` vs `missing_ok`", use_container_width=True):
+    if p2.button("✨ `list.discard()` vs `missing_ok`", use_container_width=True):
         st.session_state["search_box"] = "missing_ok"
-    if p_col3.button("🔍 Flask `wsgi.py` / config", use_container_width=True):
+    if p3.button("✨ Flask `wsgi.py` & Config", use_container_width=True):
         st.session_state["search_box"] = "wsgi.py"
-    if p_col4.button("📚 Show All Decisions", use_container_width=True):
+    if p4.button("📚 Browse All Decisions", use_container_width=True):
         st.session_state["search_box"] = ""
 
-    col_q1, col_q2 = st.columns([4, 1])
+    col_q1, col_q2 = st.columns([4.2, 1])
     with col_q1:
         search_query = st.text_input(
-            "Search by feature, file name, or function",
+            "Search decisions",
             key="search_box",
-            placeholder="e.g., __note__, missing_ok, Objects/exceptions.c, wsgi.py...",
+            placeholder="🔎 Search by feature, file path, or symbol (e.g., __note__, missing_ok, Objects/exceptions.c)...",
             label_visibility="collapsed",
         )
     with col_q2:
@@ -131,46 +272,56 @@ with tab_guide:
 
     if not hits:
         st.info(
-            "👋 No decisions matched your search yet! Click **Show All Decisions** above, "
-            "or index a repository in the **📥 Index Any Repository** tab."
+            "👋 No decisions matched your query yet. Click **Browse All Decisions** above, "
+            "or index a public repository in the **📥 Index Repository** tab."
         )
     else:
-        st.caption(f"Found **{len(hits)}** architectural decision brief(s)")
+        st.caption(f"Showing **{len(hits)}** verified architectural decision brief(s)")
         for item in hits:
             with st.container(border=True):
-                top_l, top_r = st.columns([4, 1])
-                with top_l:
-                    st.markdown(f"### 📌 {item['title']}")
-                with top_r:
-                    badge = "🟢 Active Standard" if item["status"] == "ACTIVE" else "⚪ Outdated"
-                    st.markdown(f"**{badge}**")
+                head_l, head_r = st.columns([4.5, 1])
+                with head_l:
+                    st.markdown(f'<h3 class="card-title">📌 {item["title"]}</h3>', unsafe_allow_html=True)
+                with head_r:
+                    badge_cls = "status-active" if item["status"] == "ACTIVE" else "status-outdated"
+                    badge_txt = "● Active Standard" if item["status"] == "ACTIVE" else "○ Outdated"
+                    st.markdown(f'<div style="text-align:right;"><span class="{badge_cls}">{badge_txt}</span></div>', unsafe_allow_html=True)
 
+                st.write("")
                 c_left, c_right = st.columns([1, 1.15], gap="large")
-                with c_left:
-                    st.markdown("#### ✅ What Was Chosen")
-                    st.success(item["final_decision"])
-                    st.markdown(f"**Why it won:** {item['rationale']}")
 
-                    files_str = ", ".join(f"`{f}`" for f in item["affected_files"]) or "_None tagged_"
-                    syms_str = ", ".join(f"`{s}`" for s in item["affected_symbols"][:6]) or "_None tagged_"
-                    st.markdown(f"**Related Files:** {files_str}")
-                    st.markdown(f"**Key Symbols:** {syms_str}")
-                    st.link_button("🔗 Read Original Discussion", item["source_url"])
+                with c_left:
+                    st.markdown('<h4 class="col-heading-chosen">✅ What Was Chosen</h4>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="chosen-callout">{item["final_decision"]}</div>', unsafe_allow_html=True)
+                    st.markdown(f"**Rationale:** {item['rationale']}")
+
+                    if item["affected_files"]:
+                        chips = "".join(f'<span class="code-chip">📄 {f}</span>' for f in item["affected_files"])
+                        st.markdown(f"**Files:** {chips}", unsafe_allow_html=True)
+                    if item["affected_symbols"]:
+                        sym_chips = "".join(f'<span class="code-chip">ƒ {s}</span>' for s in item["affected_symbols"][:6])
+                        st.markdown(f"**Symbols:** {sym_chips}", unsafe_allow_html=True)
+
+                    st.write("")
+                    st.link_button("🔗 Read Original Discussion Thread", item["source_url"])
 
                 with c_right:
-                    st.markdown("#### 🚫 Rejected Ideas (Avoid Re-Proposing)")
+                    st.markdown('<h4 class="col-heading-rejected">🚫 Rejected Alternatives (Do Not Re-Propose)</h4>', unsafe_allow_html=True)
                     for alt in item["rejected_alternatives"]:
                         with st.expander(f"❌ {alt.get('idea')}", expanded=True):
                             st.write(alt.get("reason_rejected"))
-                            st.caption(f"Proposed/discussed by `{alt.get('author')}`")
+                            st.caption(f"Discussed by `{alt.get('author')}`")
                             st.markdown(f"> *\"{alt.get('verbatim_quote')}\"*")
 
 # =====================================================================
 # TAB 2: INDEX ANY REPOSITORY OR FORUM
 # =====================================================================
 with tab_repo:
-    st.subheader("📥 Build Institutional Memory for Any Project")
-    st.write("Point ArchTrace at any public GitHub repository, Issue/PR, or Discourse thread to extract its hidden design history.")
+    st.markdown('<h2 class="section-heading">Index Any Public Repository or Forum</h2>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-sub">Extract unwritten architectural decisions from any GitHub repository, Issue/PR, or Discourse forum.</p>',
+        unsafe_allow_html=True,
+    )
 
     source_type = st.radio(
         "Source Type",
@@ -181,7 +332,7 @@ with tab_repo:
     if "Batch Scan" in source_type:
         c1, c2 = st.columns([3, 1])
         with c1:
-            repo_slug = st.text_input("Repository (`owner/repo`)", value="pallets/flask")
+            repo_slug = st.text_input("Public GitHub Repository (`owner/repo`)", value="pallets/flask")
         with c2:
             max_threads = st.number_input("Threads to scan", min_value=2, max_value=12, value=5)
 
@@ -231,25 +382,30 @@ with tab_repo:
 # TAB 3: PR GUARDIAN & CONTRIBUTOR PROFILES
 # =====================================================================
 with tab_pr:
-    st.subheader("🤖 Automated Pull Request Guard & Rename Tracking")
-    st.write("Test how ArchTrace warns contributors on Pull Requests—even after files are moved or renamed.")
+    st.markdown('<h2 class="section-heading">Automated Pull Request Guardian & Rename Lineage</h2>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-sub">Simulate how ArchTrace warns contributors on PRs even after files move or get renamed.</p>',
+        unsafe_allow_html=True,
+    )
 
     col_a, col_b = st.columns([1, 1.3], gap="large")
     with col_a:
         with st.container(border=True):
-            st.markdown("#### 1. File Move / Rename Lineage")
+            st.markdown('<h3 class="card-title">1. File Rename Lineage</h3>', unsafe_allow_html=True)
+            st.write("")
             if st.button("🔄 Auto-Detect Git Renames", use_container_width=True):
                 detected = sync_git_renames(".")
                 st.success(f"Synced {detected} rename(s) from Git history.")
-            old_p = st.text_input("Old File Path", value="Objects/exceptions.c")
-            new_p = st.text_input("New File Path", value="src/core/exception_types.c")
+            old_p = st.text_input("Original File Path", value="Objects/exceptions.c")
+            new_p = st.text_input("Renamed File Path", value="src/core/exception_types.c")
             if st.button("🔗 Link Renamed File", use_container_width=True):
                 register_file_rename(old_p, new_p)
                 st.success(f"Linked `{old_p}` ➡️ `{new_p}`")
 
     with col_b:
         with st.container(border=True):
-            st.markdown("#### 2. Preview PR Check")
+            st.markdown('<h3 class="card-title">2. Preview PR Memory Check</h3>', unsafe_allow_html=True)
+            st.write("")
             pr_file = st.text_input("Modified File in PR", value="src/core/exception_types.c")
             pr_diff = st.text_area(
                 "Proposed Code Change (Diff)",
@@ -272,12 +428,12 @@ with tab_pr:
             b1, b2, _ = st.columns([1, 1, 2])
             if b1.button(f"👍 Helpful (#{m['id']})", key=f"help_{m['id']}"):
                 record_pr_feedback(m["id"], "PR-DEMO", "HELPFUL", "Confirmed valid.")
-                st.success("Reinforced in memory!")
+                st.success("Reinforced in episodic memory!")
             if b2.button(f"🗑️ Mark Outdated (#{m['id']})", key=f"obs_{m['id']}"):
                 record_pr_feedback(m["id"], "PR-DEMO", "OBSOLETE", "Superseded.")
                 st.info("Marked outdated—won't alert future PRs.")
 
-    with st.expander("🪪 Cross-Platform Contributor Identity Table"):
+    with st.expander("🪪 Cross-Platform Contributor Identity Resolution"):
         c1, c2, c3, c4 = st.columns(4)
         plat = c1.selectbox("Platform", ["github", "discourse", "mailing_list"])
         handle = c2.text_input("Handle", value="Zac-HD")
@@ -296,10 +452,13 @@ with tab_pr:
 # TAB 4: BLIND ACCURACY BENCHMARK (FOR JUDGES)
 # =====================================================================
 with tab_bench:
-    st.subheader("🧪 Blind Decision Recovery Benchmark")
-    st.write("Proves ArchTrace can recover a PEP's rejected alternatives from forum discussions alone—with the PEP withheld.")
+    st.markdown('<h2 class="section-heading">Blind Decision Recovery Benchmark</h2>', unsafe_allow_html=True)
+    st.markdown(
+        '<p class="section-sub">Evaluates ArchTrace on forum discussions alone while withholding the official PEP document.</p>',
+        unsafe_allow_html=True,
+    )
 
-    selected_pep = st.selectbox("Benchmark Dataset", list(SAMPLE_PEP_BENCHMARKS.keys()))
+    selected_pep = st.selectbox("Select Benchmark Dataset", list(SAMPLE_PEP_BENCHMARKS.keys()))
     benchmark = SAMPLE_PEP_BENCHMARKS[selected_pep]
 
     c_run, c_live = st.columns([1, 2])
@@ -330,14 +489,14 @@ with tab_bench:
         col_l, col_r = st.columns([1.2, 1], gap="large")
         with col_l:
             with st.container(border=True):
-                st.markdown(f"#### Extracted: {res.get('title')}")
+                st.markdown(f'<h3 class="card-title">Extracted: {res.get("title")}</h3>', unsafe_allow_html=True)
                 st.caption(f"Engine: `{res.get('extraction_mode', 'Heuristic')}`")
                 st.write(f"**Chosen:** {res.get('final_decision')}")
                 for alt in res.get("rejected_alternatives", []):
                     st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
         with col_r:
             with st.container(border=True):
-                st.markdown(f"#### 🔑 Official {bench['pep_number']} Answer Key")
+                st.markdown(f'<h3 class="card-title">🔑 Official {bench["pep_number"]} Answer Key</h3>', unsafe_allow_html=True)
                 st.caption("Withheld during extraction")
                 for item in bench["ground_truth_rejected_ideas"]:
                     st.markdown(f"- ✅ {item}")
