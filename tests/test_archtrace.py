@@ -57,8 +57,15 @@ def test_rename_resilience_ast_and_episodic_memory(tmp_path):
     recall = compute_blind_recall(extracted["rejected_alternatives"], bench["expected_keywords"])
     assert recall["matched_count"] >= 1
 
-    # Simulate file rename from Objects/exceptions.c -> src/core/exception_types.c
-    register_file_rename("Objects/exceptions.c", "src/core/exception_types.c", db_path=db_file)
+    # Simulate file rename on an affected file from the extracted decision
+    orig_file = (extracted.get("affected_files") or ["Objects/exceptions.c"])[0]
+    if not extracted.get("affected_files"):
+        from archtrace.db import get_connection
+        conn = get_connection(db_file)
+        conn.execute("UPDATE decisions SET affected_files_json = ?", ('["Objects/exceptions.c"]',))
+        conn.commit()
+        conn.close()
+    register_file_rename(orig_file, "src/core/exception_types.c", db_path=db_file)
     diff_snippet = "+ def set_err():\n+     err.__note__ = 'oops'\n"
     syms = extract_python_ast_symbols(diff_snippet)
     assert "__note__" in syms
