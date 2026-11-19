@@ -188,31 +188,71 @@ def query_decisions_for_pr(
     return matches
 
 
-def search_decisions(query: str, include_obsolete: bool = False, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
+def search_decisions(query: str = "", include_obsolete: bool = False, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
     """Searches stored decisions by plain-English sentence, exact keyword, file path (including renames), or symbol."""
-    q = query.strip().lower()
-    candidate_paths = {p.lower() for p in resolve_historical_paths(query.strip(), db_path=db_path)} if q else set()
+    q = (query or "").strip().lower()
+    candidate_paths = {p.lower() for p in resolve_historical_paths((query or "").strip(), db_path=db_path)} if q else set()
     raw_tokens = re.findall(r"[a-z0-9_./-]{3,}", q)
     query_terms = {t for t in raw_tokens if t not in STOP_WORDS}
 
-def search_decisions(query: str = "", include_obsolete: bool = False, db_path: Path = DEFAULT_DB_PATH) -> List[Dict]:
     conn = get_connection(db_path)
     rows = conn.execute("SELECT * FROM decisions ORDER BY id DESC").fetchall()
     conn.close()
 
+    scored_results = []
+    for row in rows:
+        if not include_obsolete and row["status"] != "ACTIVE":
+            continue
+        files = json.loads(row["affected_files_json"] or "[]")
+        syms = json.loads(row["affected_symbols_json"] or "[]")
+        rejected = json.loads(row["rejected_alternatives_json"] or "[]")
+
+        haystack = " ".join([
+            row["title"] or "",
+            row["final_decision"] or "",
+            row["rationale"] or "",
+            " ".join(files),
+            " ".join(syms),
+            " ".join(f"{r.get('idea', '')} {r.get('reason_rejected', '')}" for r in rejected),
+        ]).lower()
+
+        score = 0
+        matched_terms = []
+        if not q:
+            score = 1
+        else:
+            if q in haystack:
+                score += 10
+                matched_terms.append(q)
+            for p in candidate_paths:
+                if any(p in f.lower() for f in files):
+                    score += 8
+                    matched_terms.append(p)
+            for term in query_terms:
+                if term in haystack:
+                    score += 3
+                    matched_terms.append(term)
+
+        if score > 0:
+            scored_results.append((
+                score,
+                {
+                    "id": row["id"],
+                    "source_url": row["source_url"],
+                    "title": row["title"],
+                    "status": row["status"],
                     "final_decision": row["final_decision"],
                     "rationale": row["rationale"],
                     "affected_files": files,
                     "affected_symbols": syms,
                     "rejected_alternatives": rejected,
-                    "matched_keywords": matched_terms,
+                    "matched_keywords": sorted(set(matched_terms)),
                 },
             ))
 
     if q:
         scored_results.sort(key=lambda x: x[0], reverse=True)
     return [item for _, item in scored_results]
-
 
 def get_decision_stats(db_path: str = DEFAULT_DB_PATH) -> Dict:
     """Computes institutional memory KPIs and top debated file hotspots."""
