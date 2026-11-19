@@ -200,46 +200,6 @@ def search_decisions(query: str = "", include_obsolete: bool = False, db_path: P
     rows = conn.execute("SELECT * FROM decisions ORDER BY id DESC").fetchall()
     conn.close()
 
-    scored_results: List[tuple] = []
-    seen_urls: Set[str] = set()
-
-    for row in rows:
-        if row["source_url"] in seen_urls:
-            continue
-        files = json.loads(row["affected_files_json"] or "[]")
-        syms = json.loads(row["affected_symbols_json"] or "[]")
-        rejected = json.loads(row["rejected_alternatives_json"] or "[]")
-
-        searchable_blob = " ".join([
-            row["title"] or "",
-            row["source_url"] or "",
-            row["final_decision"] or "",
-            row["rationale"] or "",
-            " ".join(files),
-            " ".join(syms),
-            " ".join(
-                f"{r.get('idea', '')} {r.get('reason_rejected', '')} {r.get('verbatim_quote', '')}"
-                for r in rejected
-            ),
-        ]).lower()
-
-        path_hit = any(f.lower() in candidate_paths for f in files)
-        exact_hit = bool(q and q in searchable_blob)
-        matched_terms = sorted({
-            term for term in query_terms
-            if re.search(rf"\b{re.escape(term)}\b", searchable_blob) or (term in searchable_blob and ("." in term or "/" in term or "_" in term))
-        })
-
-        if not q or path_hit or exact_hit or matched_terms:
-            seen_urls.add(row["source_url"])
-            score = (10 if path_hit else 0) + (5 if exact_hit else 0) + len(matched_terms)
-            scored_results.append((
-                score,
-                {
-                    "id": row["id"],
-                    "status": row["status"],
-                    "source_url": row["source_url"],
-                    "title": row["title"],
                     "final_decision": row["final_decision"],
                     "rationale": row["rationale"],
                     "affected_files": files,
