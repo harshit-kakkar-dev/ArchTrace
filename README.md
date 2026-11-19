@@ -51,7 +51,10 @@ ArchTrace/
 │   └── test_archtrace.py                    # Pytest suite covering identity, incremental hashing & rename resilience
 ├── .github/workflows/archtrace-pr-bot.yml   # GitHub Actions CI workflow for automated PR decision checks
 └── requirements.txt
-🚀 Quickstart
+```
+
+# 🚀 Quickstart
+
 1. Clone & Install Dependencies
 Bash
 git clone [https://github.com/harshit-kakkar-dev/ArchTrace.git](https://github.com/harshit-kakkar-dev/ArchTrace.git)
@@ -59,25 +62,31 @@ cd ArchTrace
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-2. Configure Optional Open-Weight LLM API Key
+
+3. Configure Optional Open-Weight LLM API Key
 Create a .env file in the project root (optional—ArchTrace works out of the box in offline heuristic mode without a key):
 
 Code snippet
-LLM_API_KEY=your_groq_or_openrouter_api_key
+LLM_API_KEY=your_groq_or_openrouter_api_key 
+
 3. Launch the Web Dashboard
 Bash
 streamlit run app.py
 Open http://localhost:8501 to explore:
 
-🧭 Contributor Explorer: Natural-language & symbol search, codebase decision hotspots, side-by-side Chosen vs. Rejected briefs, and one-click ADR (.md) export.
+#🧭 Contributor Explorer: 
+Natural-language & symbol search, codebase decision hotspots, side-by-side Chosen vs. Rejected briefs, and one-click ADR (.md) export.
 
-📥 Index Repository: Batch-scan public GitHub repos or extract decisions from single GitHub Issues/PRs, Discourse threads, or mailing list archives.
+#📥 Index Repository: 
+Batch-scan public GitHub repos or extract decisions from single GitHub Issues/PRs, Discourse threads, or mailing list archives.
 
-🤖 PR Guardian & Team: Simulate rename-aware PR checks, record episodic feedback, and inspect unified cross-platform contributor identities.
+#🤖 PR Guardian & Team: 
+Simulate rename-aware PR checks, record episodic feedback, and inspect unified cross-platform contributor identities.
 
-🧪 Blind Benchmark: Run blind rejected-idea recall tests on Python PEPs.
+#🧪 Blind Benchmark: 
+Run blind rejected-idea recall tests on Python PEPs.
 
-🧪 Running Automated Tests
+#🧪 Running Automated Tests
 Bash
 source venv/bin/activate
 python -m pytest -v
