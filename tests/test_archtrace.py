@@ -47,10 +47,10 @@ def test_rename_resilience_ast_and_episodic_memory(tmp_path):
     db_file = str(tmp_path / "test.db")
     init_db(db_file)
 
-    bench = SAMPLE_PEP_BENCHMARKS["PEP 678 – Enriching Exceptions with Notes (Discourse #12641)"]
+    bench = SAMPLE_PEP_BENCHMARKS["PEP 678 – Enriching Exceptions with Notes (Discourse #13374)"]
     extracted = extract_decisions_from_posts(
         bench["discourse_url"],
-        bench["synthetic_discussion_posts"],
+        bench["cached_real_posts"],
         provider="Offline Heuristic Mode",
         db_path=db_file,
     )
