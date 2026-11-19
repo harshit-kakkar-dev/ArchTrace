@@ -56,13 +56,14 @@ ArchTrace/
 # 🚀 Quickstart
 
 1. Clone & Install Dependencies
+```text
 Bash
 git clone [https://github.com/harshit-kakkar-dev/ArchTrace.git](https://github.com/harshit-kakkar-dev/ArchTrace.git)
 cd ArchTrace
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
+```
 3. Configure Optional Open-Weight LLM API Key
 Create a .env file in the project root (optional—ArchTrace works out of the box in offline heuristic mode without a key):
 
@@ -70,8 +71,10 @@ Code snippet
 LLM_API_KEY=your_groq_or_openrouter_api_key 
 
 3. Launch the Web Dashboard
+```text
 Bash
 streamlit run app.py
+```
 Open http://localhost:8501 to explore:
 
 ### 🧭 Contributor Explorer: 
