@@ -29,67 +29,67 @@ from archtrace.ingestion import (
 
 load_dotenv()
 st.set_page_config(
-    page_title="ArchTrace — Open-Source Decision Intelligence",
+    page_title="ArchTrace — Institutional Memory for Open Source",
     page_icon="🧭",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 init_db()
 
-# Top SaaS Navbar + Instant Light / Dark Theme Switcher
-nav_l, nav_r = st.columns([4, 1])
-with nav_l:
+# Top Utility Bar with Live Light / Dark Theme Toggle
+top_l, top_r = st.columns([4.5, 1])
+with top_l:
     st.markdown(
-        '<div style="display:flex;align-items:center;gap:10px;padding-top:4px;">'
-        '<span style="background:linear-gradient(135deg,#6366F1,#06B6D4);color:white;font-weight:800;'
-        'padding:4px 10px;border-radius:8px;font-size:0.9rem;letter-spacing:0.03em;">ARCHTRACE</span>'
-        '<span style="font-size:0.88rem;opacity:0.75;font-weight:500;">Institutional Memory & PR Guardian</span>'
+        '<div style="padding-top:6px;font-size:0.85rem;font-weight:600;opacity:0.75;">'
+        "🧭 Open-Source Contributor & Maintainer Portal"
         "</div>",
         unsafe_allow_html=True,
     )
-with nav_r:
+with top_r:
     dark_mode = st.toggle("🌙 Dark Mode", value=True, key="ui_dark_mode")
 
-# Dynamic Design Tokens for Light vs Dark Theme
+# Complete Light & Dark Theme Token System (overrides Streamlit widgets + custom cards)
 if dark_mode:
-    tokens = """
-        --app-bg: #090D16;
-        --surface: #111827;
-        --surface-elevated: #161F33;
-        --border-subtle: rgba(148, 163, 184, 0.16);
-        --text-main: #F8FAFC;
-        --text-sub: #94A3B8;
-        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.22), transparent 45%),
+    theme_css = """
+        --bg-canvas: #090D16;
+        --bg-surface: #111827;
+        --bg-input: #1E293B;
+        --border-color: rgba(148, 163, 184, 0.2);
+        --text-primary: #F8FAFC;
+        --text-secondary: #94A3B8;
+        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.25), transparent 50%),
                    linear-gradient(135deg, #1E1B4B 0%, #0F172A 100%);
-        --hero-border: rgba(99, 102, 241, 0.35);
+        --hero-border: rgba(99, 102, 241, 0.4);
         --hero-title: #FFFFFF;
+        --hero-tagline: #A5B4FC;
         --hero-body: #CBD5E1;
-        --chosen-bg: rgba(16, 185, 129, 0.12);
+        --chosen-bg: rgba(16, 185, 129, 0.14);
         --chosen-text: #ECFDF5;
-        --chip-bg: rgba(99, 102, 241, 0.16);
+        --chip-bg: rgba(99, 102, 241, 0.18);
         --chip-text: #C7D2FE;
-        --chip-border: rgba(129, 140, 248, 0.28);
-        --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        --chip-border: rgba(129, 140, 248, 0.3);
+        --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
     """
 else:
-    tokens = """
-        --app-bg: #F8FAFC;
-        --surface: #FFFFFF;
-        --surface-elevated: #F1F5F9;
-        --border-subtle: #E2E8F0;
-        --text-main: #0F172A;
-        --text-sub: #475569;
-        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.16), transparent 45%),
-                   linear-gradient(135deg, #EEF2FF 0%, #F0FDFA 100%);
-        --hero-border: #C7D2FE;
+    theme_css = """
+        --bg-canvas: #F4F7FB;
+        --bg-surface: #FFFFFF;
+        --bg-input: #F8FAFC;
+        --border-color: #CBD5E1;
+        --text-primary: #0F172A;
+        --text-secondary: #475569;
+        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.18), transparent 50%),
+                   linear-gradient(135deg, #EEF2FF 0%, #E0F2FE 100%);
+        --hero-border: #A5B4FC;
         --hero-title: #0F172A;
+        --hero-tagline: #4338CA;
         --hero-body: #334155;
         --chosen-bg: #ECFDF5;
         --chosen-text: #064E3B;
         --chip-bg: #EEF2FF;
         --chip-text: #3730A3;
         --chip-border: #C7D2FE;
-        --card-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+        --shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
     """
 
 st.markdown(
@@ -98,83 +98,105 @@ st.markdown(
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
     :root {{
-        {tokens}
+        {theme_css}
     }}
 
-    html, body, .stApp {{
-        background-color: var(--app-bg) !important;
-        color: var(--text-main) !important;
+    /* Force Canvas & Global Typography in BOTH Light and Dark Modes */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
+        background-color: var(--bg-canvas) !important;
+        color: var(--text-primary) !important;
         font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }}
 
+    /* Force All Text, Labels, Captions, Markdown & Lists to Respect Theme */
+    .stMarkdown p, .stMarkdown li, .stMarkdown span, label, [data-testid="stWidgetLabel"] p,
+    [data-testid="stCaptionContainer"], .stCaption {{
+        color: var(--text-primary) !important;
+    }}
+    [data-testid="stCaptionContainer"] p {{
+        color: var(--text-secondary) !important;
+    }}
+
+    /* Force Inputs, TextAreas, Selectboxes & Expanders to Respect Theme */
+    [data-baseweb="input"] > div,
+    [data-baseweb="textarea"] > div,
+    [data-baseweb="select"] > div {{
+        background-color: var(--bg-input) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important;
+        border-radius: 10px !important;
+    }}
+    input, textarea {{
+        color: var(--text-primary) !important;
+        -webkit-text-fill-color: var(--text-primary) !important;
+    }}
+    [data-testid="stExpander"] {{
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
+    }}
+    [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {{
+        color: var(--text-primary) !important;
+    }}
+
     .block-container {{
-        padding-top: 1.2rem !important;
+        padding-top: 1.1rem !important;
         padding-bottom: 3rem !important;
         max-width: 1200px !important;
     }}
-
     #MainMenu, footer, header[data-testid="stHeader"] {{
         background: transparent !important;
     }}
 
-    /* Modern React-style Hero Section */
-    .saas-hero {{
+    /* Primary Brand Hero Banner (ArchTrace + Tagline as H1) */
+    .archtrace-hero {{
         background: var(--hero-bg);
         border: 1px solid var(--hero-border);
-        border-radius: 20px;
-        padding: 2rem 2.4rem;
-        margin: 0.4rem 0 1.4rem 0;
-        box-shadow: var(--card-shadow);
+        border-radius: 22px;
+        padding: 2.2rem 2.5rem;
+        margin: 0.35rem 0 1.5rem 0;
+        box-shadow: var(--shadow);
     }}
-    .saas-badge {{
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(99, 102, 241, 0.15);
-        color: #6366F1;
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        font-size: 0.76rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        padding: 0.28rem 0.8rem;
-        border-radius: 999px;
-        margin-bottom: 0.75rem;
-    }}
-    .saas-hero h1 {{
+    .archtrace-hero h1 {{
         color: var(--hero-title) !important;
-        font-size: 2.15rem !important;
+        font-size: 2.65rem !important;
         font-weight: 800 !important;
-        letter-spacing: -0.025em !important;
-        line-height: 1.18 !important;
-        margin: 0 0 0.55rem 0 !important;
+        letter-spacing: -0.03em !important;
+        line-height: 1.12 !important;
+        margin: 0 0 0.35rem 0 !important;
     }}
-    .saas-hero p {{
-        color: var(--hero-body) !important;
-        font-size: 1.03rem !important;
-        line-height: 1.6 !important;
-        margin: 0 !important;
-        max-width: 780px;
-    }}
-
-    /* Strict Semantic Headings */
-    h2.sec-h2 {{
-        color: var(--text-main) !important;
-        font-size: 1.42rem !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.015em !important;
-        margin: 0.4rem 0 0.15rem 0 !important;
-    }}
-    p.sec-sub {{
-        color: var(--text-sub) !important;
-        font-size: 0.95rem !important;
-        margin-bottom: 1.1rem !important;
-    }}
-    h3.card-h3 {{
-        color: var(--text-main) !important;
-        font-size: 1.18rem !important;
+    .hero-tagline {{
+        color: var(--hero-tagline) !important;
+        font-size: 1.25rem !important;
         font-weight: 700 !important;
         letter-spacing: -0.01em !important;
+        margin: 0 0 0.7rem 0 !important;
+    }}
+    .archtrace-hero p.hero-desc {{
+        color: var(--hero-body) !important;
+        font-size: 1.02rem !important;
+        line-height: 1.6 !important;
+        margin: 0 !important;
+        max-width: 820px;
+    }}
+
+    /* Semantic Headings (H2 -> H3 -> H4) */
+    h2.sec-h2 {{
+        color: var(--text-primary) !important;
+        font-size: 1.45rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.015em !important;
+        margin: 0.4rem 0 0.2rem 0 !important;
+    }}
+    p.sec-sub {{
+        color: var(--text-secondary) !important;
+        font-size: 0.96rem !important;
+        margin-bottom: 1.15rem !important;
+    }}
+    h3.card-h3 {{
+        color: var(--text-primary) !important;
+        font-size: 1.2rem !important;
+        font-weight: 700 !important;
         margin: 0 !important;
     }}
     h4.col-h4-good {{
@@ -194,30 +216,30 @@ st.markdown(
         margin: 0 0 0.55rem 0 !important;
     }}
 
-    /* Elevated Glass/Bento Containers */
+    /* Elevated Bento Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background-color: var(--surface) !important;
-        border: 1px solid var(--border-subtle) !important;
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
         border-radius: 16px !important;
-        box-shadow: var(--card-shadow) !important;
+        box-shadow: var(--shadow) !important;
         transition: transform 0.18s ease, border-color 0.18s ease;
     }}
     div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-        border-color: rgba(99, 102, 241, 0.45) !important;
+        border-color: #6366F1 !important;
         transform: translateY(-2px);
     }}
 
-    /* Segmented Pill Navigation Tabs */
+    /* Segmented Pill Tabs */
     .stTabs [data-baseweb="tab-list"] {{
-        background-color: var(--surface) !important;
-        border: 1px solid var(--border-subtle) !important;
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
         border-radius: 14px !important;
         padding: 0.35rem !important;
         gap: 0.4rem !important;
-        box-shadow: var(--card-shadow);
+        box-shadow: var(--shadow);
     }}
     .stTabs [data-baseweb="tab"] {{
-        color: var(--text-sub) !important;
+        color: var(--text-secondary) !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
         padding: 0.5rem 1.05rem !important;
@@ -225,24 +247,27 @@ st.markdown(
     .stTabs [aria-selected="true"] {{
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: #FFFFFF !important;
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     }}
 
-    /* Buttons & Quick-Search Pills */
+    /* Secondary & Primary Buttons */
     .stButton > button {{
+        background-color: var(--bg-surface) !important;
+        color: var(--text-primary) !important;
+        border: 1px solid var(--border-color) !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        border: 1px solid var(--border-subtle) !important;
-        transition: all 0.15s ease !important;
+    }}
+    .stButton > button:hover {{
+        border-color: #6366F1 !important;
+        color: #6366F1 !important;
     }}
     .stButton > button[kind="primary"] {{
         background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
         color: #FFFFFF !important;
         border: none !important;
-        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
     }}
 
-    /* Callouts & Monospace Code Chips */
+    /* Callout & Code Chips */
     .chosen-box {{
         background: var(--chosen-bg);
         border-left: 4px solid #10B981;
@@ -275,8 +300,8 @@ st.markdown(
     }}
     .pill-outdated {{
         background: rgba(148, 163, 184, 0.16);
-        color: var(--text-sub);
-        border: 1px solid var(--border-subtle);
+        color: var(--text-secondary);
+        border: 1px solid var(--border-color);
         padding: 0.22rem 0.72rem;
         border-radius: 999px;
         font-size: 0.78rem;
@@ -312,15 +337,15 @@ with st.sidebar:
             "- **Episodic Memory:** Learns from `/archtrace helpful|obsolete`"
         )
 
-# Semantic H1 Hero Banner
+# Semantic H1 Hero Banner featuring ArchTrace + Tagline
 st.markdown(
     """
-    <div class="saas-hero">
-        <span class="saas-badge">🧭 Contributor Decision Intelligence</span>
-        <h1>Understand Why Code Was Built This Way</h1>
-        <p>
-            Search any feature, file path, or rejected idea before writing code. ArchTrace turns scattered GitHub
-            issues, PRs, and forum threads into instant, verifiable architectural briefs.
+    <div class="archtrace-hero">
+        <h1>🧭 ArchTrace</h1>
+        <div class="hero-tagline">Institutional Memory &amp; Unwritten Decision Recovery for Open Source</div>
+        <p class="hero-desc">
+            Understand why code was built this way before writing a single line. Search any feature, file path,
+            or rejected idea to surface past architectural choices, failed experiments, and original maintainer threads.
         </p>
     </div>
     """,
