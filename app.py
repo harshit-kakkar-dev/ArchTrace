@@ -139,16 +139,15 @@ tab_guide, tab_repo, tab_pr, tab_bench = st.tabs([
 # =====================================================================
 with tab_guide:
 
-    # Secondary Quick-Filter Chips
+    # Secondary Quick-Filter Chips (via on_click callback so search_box updates before widget instantiation)
+    def _set_search_filter(val: str) -> None:
+        st.session_state["search_box"] = val
+
     f1, f2, f3, f4 = st.columns(4)
-    if f1.button("Filter: __note__", use_container_width=True):
-        st.session_state["search_box"] = "__note__"
-    if f2.button("Filter: subinterpreter", use_container_width=True):
-        st.session_state["search_box"] = "subinterpreter"
-    if f3.button("Filter: wsgi.py", use_container_width=True):
-        st.session_state["search_box"] = "wsgi.py"
-    if f4.button("Clear filter", use_container_width=True):
-        st.session_state["search_box"] = ""
+    f1.button("Filter: __note__", on_click=_set_search_filter, args=("__note__",), use_container_width=True)
+    f2.button("Filter: subinterpreter", on_click=_set_search_filter, args=("subinterpreter",), use_container_width=True)
+    f3.button("Filter: wsgi.py", on_click=_set_search_filter, args=("wsgi.py",), use_container_width=True)
+    f4.button("Clear filter", on_click=_set_search_filter, args=("",), use_container_width=True)
 
     stats = get_decision_stats()
     render_telemetry_strip(stats)
