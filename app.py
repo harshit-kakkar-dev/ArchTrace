@@ -412,12 +412,9 @@ with st.sidebar:
 
     with st.expander("Architecture Notes"):
         st.markdown(
-            "- **Blind Evaluation:** Recovers rejected ideas with PEP text withheld
-"
-            "- **Incremental Sync:** SHA-256 hashing skips unchanged comments
-"
-            "- **Rename Tracking:** `git log --diff-filter=R` + Python `ast` symbols
-"
+            "- **Blind Evaluation:** Recovers rejected ideas with PEP text withheld\n"
+            "- **Incremental Sync:** SHA-256 hashing skips unchanged comments\n"
+            "- **Rename Tracking:** `git log --diff-filter=R` + Python `ast` symbols\n"
             "- **Episodic Memory:** Learns from `/archtrace helpful|obsolete`"
         )
 
