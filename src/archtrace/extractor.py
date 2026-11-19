@@ -7,13 +7,34 @@ from .db import DEFAULT_DB_PATH, get_connection
 
 
 def get_llm_client(provider: str, api_key: str):
-    if not api_key:
-        return None, None
+    key = api_key.strip()
+    if not key:
+        return None, []
     if "Groq" in provider:
-        return OpenAI(base_url="https://api.groq.com/openai/v1", api_key=api_key), "llama-3.1-8b-instant"
+        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=key)
+        preferred = [
+            "llama-3.3-70b-versatile",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "qwen/qwen3-32b",
+            "llama3-8b-8192",
+        ]
+        try:
+            live_ids = [
+                m.id for m in client.models.list().data
+                if "whisper" not in m.id.lower() and "guard" not in m.id.lower() and "tts" not in m.id.lower()
+            ]
+            ordered = [m for m in preferred if m in live_ids] + [m for m in live_ids if m not in preferred]
+            if ordered:
+                return client, ordered[:3]
+        except Exception:
+            pass
+        return client, preferred
     if "OpenRouter" in provider:
-        return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key), "meta-llama/llama-3.1-8b-instruct:free"
-    return None, None
+        return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=key), [
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "meta-llama/llama-3.1-8b-instruct:free",
+        ]
+    return None, []
 
 
 def extract_decisions_from_posts(
@@ -54,24 +75,33 @@ Respond ONLY with valid JSON matching this schema:
   "affected_symbols": ["code symbols mentioned, e.g., BaseException.add_note, __notes__"]
 }"""
 
-    client, model_name = get_llm_client(provider, api_key)
-    if client:
-        try:
-            resp = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"DISCUSSION TRANSCRIPT:\n{transcript[:18000]}"},
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.1,
-            )
-            result = json.loads(resp.choices[0].message.content)
-        except Exception:
+    client, model_candidates = get_llm_client(provider, api_key)
+    if client and model_candidates:
+        last_err = None
+        result = None
+        for model_name in model_candidates:
+            try:
+                resp = client.chat.completions.create(
+                    model=model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"DISCUSSION TRANSCRIPT:\n{transcript[:18000]}"},
+                    ],
+                    response_format={"type": "json_object"},
+                    temperature=0.1,
+                )
+                result = json.loads(resp.choices[0].message.content)
+                result["extraction_mode"] = f"Live Open-Weight LLM ({model_name})"
+                break
+            except Exception as exc:
+                last_err = exc
+        if result is None:
             result = heuristic_decision_extractor(thread_url, posts)
+            result["extraction_mode"] = f"Offline Fallback (API error: {last_err})"
     else:
         result = heuristic_decision_extractor(thread_url, posts)
-
+        result["extraction_mode"] = "Offline Heuristic Mode (No API Key)"
+        
     if target_files:
         result["affected_files"] = list(set(result.get("affected_files", []) + target_files))
     if target_symbols:
