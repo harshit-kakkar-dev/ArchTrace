@@ -181,7 +181,7 @@ STOP_WORDS = {
 
 def search_decisions(query: str = "", include_obsolete: bool = False, db_path: Path = DEFAULT_DB_PATH) -> List[Dict]:
     conn = get_connection(db_path)
-    rows = conn.execute("SELECT * FROM decisions ORDER BY helpful_votes DESC, id DESC").fetchall()
+    rows = conn.execute("SELECT * FROM decisions ORDER BY id DESC").fetchall()
     conn.close()
 
     raw_q = query.strip().lower()
