@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from openai import OpenAI
@@ -80,52 +81,8 @@ Respond ONLY with valid JSON matching this schema:
     return result
 
 
-    """Deterministic fallback extractor when running offline without an API key."""
-    import re
-
-    rejected = []
-    symbols = set()
-    files = set()
-    patterns = [
-        r"(?:rejected|against|downside|problem with|instead of|rather than|won't work|doesn't work|breaks)[^.?!]*[.?!]",
-    ]
-
-    for p in posts:
-        text = p["text"]
-        for sym in re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*\b|\b__[a-z_]+__\b", text):
-            symbols.add(sym)
-        for f in re.findall(r"\b[\w/.-]+\.(?:py|c|h|toml|rst|md|ts|js)\b", text):
-            files.add(f)
-        for pat in patterns:
-            for match in re.findall(pat, text, flags=re.IGNORECASE)[:2]:
-                clean = match.strip()
-                if len(clean) > 30 and len(rejected) < 6:
-                    rejected.append({
-                        "idea": f"Alternative discussed by @{p['author']}: {clean[:65]}...",
-                        "reason_rejected": clean,
-                        "author": f"@{p['author']}",
-                        "source_url": p["url"],
-                        "verbatim_quote": clean,
-                    })
-
-    return {
-        "title": f"Recovered Architectural Decision ({thread_url.rstrip('/').split('/')[-1]})",
-        "final_decision": "Consensus converged on the primary design after evaluating backwards compatibility and API ergonomics.",
-        "rationale": "Avoids grammar/runtime complexity while preserving type safety.",
-        "rejected_alternatives": rejected or [{
-            "idea": "Alternative design proposal",
-            "reason_rejected": "Rejected due to edge-case complexity.",
-            "author": f"@{posts[0]['author']}" if posts else "@maintainer",
-            "source_url": posts[0]["url"] if posts else thread_url,
-            "verbatim_quote": posts[0]["text"][:160] if posts else "See linked thread.",
-        }],
-        "affected_files": list(files),
-        "affected_symbols": list(symbols)[:12],
-    }
 def heuristic_decision_extractor(thread_url: str, posts: List[Dict]) -> Dict:
     """Deterministic fallback extractor when running offline without an API key."""
-    import re
-
     rejected = []
     symbols = set()
     files = set()
@@ -186,31 +143,62 @@ def heuristic_decision_extractor(thread_url: str, posts: List[Dict]) -> Dict:
         "affected_symbols": list(symbols)[:12],
     }
 
+
 def save_decision(source_url: str, data: Dict, posts: List[Dict], db_path: str = DEFAULT_DB_PATH) -> int:
     conn = get_connection(db_path)
     cur = conn.cursor()
     participants = list({p["canonical_id"] for p in posts})
-    cur.execute(
-        """
-        INSERT INTO decisions (
-            source_url, title, final_decision, rationale,
-            rejected_alternatives_json, affected_files_json,
-            affected_symbols_json, participants_json, status, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
-        """,
-        (
-            source_url,
-            data.get("title", "Untitled Decision"),
-            data.get("final_decision", ""),
-            data.get("rationale", ""),
-            json.dumps(data.get("rejected_alternatives", [])),
-            json.dumps(data.get("affected_files", [])),
-            json.dumps(data.get("affected_symbols", [])),
-            json.dumps(participants),
-            datetime.now(timezone.utc).isoformat(),
-        ),
-    )
-    decision_id = cur.lastrowid
+    now = datetime.now(timezone.utc).isoformat()
+
+    cur.execute("SELECT id FROM decisions WHERE source_url = ?", (source_url,))
+    existing = cur.fetchone()
+
+    if existing:
+        decision_id = existing["id"]
+        cur.execute(
+            """
+            UPDATE decisions SET
+                title = ?, final_decision = ?, rationale = ?,
+                rejected_alternatives_json = ?, affected_files_json = ?,
+                affected_symbols_json = ?, participants_json = ?,
+                status = 'ACTIVE', updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                data.get("title", "Untitled Decision"),
+                data.get("final_decision", ""),
+                data.get("rationale", ""),
+                json.dumps(data.get("rejected_alternatives", [])),
+                json.dumps(data.get("affected_files", [])),
+                json.dumps(data.get("affected_symbols", [])),
+                json.dumps(participants),
+                now,
+                decision_id,
+            ),
+        )
+    else:
+        cur.execute(
+            """
+            INSERT INTO decisions (
+                source_url, title, final_decision, rationale,
+                rejected_alternatives_json, affected_files_json,
+                affected_symbols_json, participants_json, status, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+            """,
+            (
+                source_url,
+                data.get("title", "Untitled Decision"),
+                data.get("final_decision", ""),
+                data.get("rationale", ""),
+                json.dumps(data.get("rejected_alternatives", [])),
+                json.dumps(data.get("affected_files", [])),
+                json.dumps(data.get("affected_symbols", [])),
+                json.dumps(participants),
+                now,
+            ),
+        )
+        decision_id = cur.lastrowid
+
     conn.commit()
     conn.close()
     return decision_id
