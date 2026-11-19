@@ -70,18 +70,16 @@ def build_adr_markdown(item: dict) -> str:
     return "\n".join(lines)
 
 
-# Minimal Top Navigation Bar
+# Minimal Top Navigation Bar# Minimal Top Navigation Bar
 top_l, top_r = st.columns([5, 1])
 with top_l:
     st.markdown(
-        '<div class="topbar-meta"><span class="brand-dot"></span>'
-        '<span class="brand-name">archtrace</span>'
-        '<span class="brand-sep">/</span>'
-        '<span class="brand-sub">architectural decision registry</span></div>',
+        '<div class="topbar-meta"><span class="brand-badge">ARCHTRACE</span>'
+        '<span class="brand-sub">Architectural Decision &amp; Rationale Registry</span></div>',
         unsafe_allow_html=True,
     )
 with top_r:
-    dark_mode = st.toggle("Dark theme", value=True, key="ui_dark_mode")
+    dark_mode = st.toggle("Dark mode", value=False, key="ui_dark_mode")
 
 active_theme = "dark" if dark_mode else "light"
 components.html(
@@ -99,46 +97,52 @@ st.markdown(
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-    :root, :root[data-theme="dark"] {
-        --bg-canvas: #09090B;
-        --bg-surface: #111114;
-        --bg-subtle: #18181B;
-        --bg-input: #121215;
-        --border-color: #27272A;
-        --border-strong: #3F3F46;
-        --text-primary: #FAFAFA;
-        --text-secondary: #A1A1AA;
-        --text-muted: #71717A;
-        --accent-solid: #FAFAFA;
-        --accent-solid-text: #09090B;
-        --accent-highlight: #E4E4E7;
-        --chosen-bg: rgba(16, 185, 129, 0.08);
+    :root, :root[data-theme="light"] {
+        --bg-canvas: #F6F8FC;
+        --bg-surface: #FFFFFF;
+        --bg-subtle: #EFF4FF;
+        --bg-input: #FFFFFF;
+        --border-color: #E2E8F0;
+        --border-strong: #93C5FD;
+        --text-primary: #0F172A;
+        --text-secondary: #475569;
+        --text-muted: #64748B;
+        --accent-primary: #2563EB;
+        --accent-hover: #1D4ED8;
+        --accent-soft: #EFF6FF;
+        --accent-border: #BFDBFE;
+        --header-bg: linear-gradient(120deg, #FFFFFF 0%, #EFF6FF 55%, #F0FDF4 100%);
+        --chosen-bg: #ECFDF5;
         --chosen-border: #10B981;
-        --chosen-text: #D1FAE5;
-        --chip-bg: #18181B;
-        --chip-text: #D4D4D8;
-        --chip-border: #27272A;
+        --chosen-text: #065F46;
+        --chip-bg: #F1F5F9;
+        --chip-text: #1E293B;
+        --chip-border: #CBD5E1;
+        --card-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
     }
 
-    :root[data-theme="light"] {
-        --bg-canvas: #FAFAFA;
-        --bg-surface: #FFFFFF;
-        --bg-subtle: #F4F4F5;
-        --bg-input: #FFFFFF;
-        --border-color: #E4E4E7;
-        --border-strong: #D4D4D8;
-        --text-primary: #09090B;
-        --text-secondary: #52525B;
-        --text-muted: #71717A;
-        --accent-solid: #18181B;
-        --accent-solid-text: #FAFAFA;
-        --accent-highlight: #18181B;
-        --chosen-bg: #F0FDF4;
-        --chosen-border: #16A34A;
-        --chosen-text: #14532D;
-        --chip-bg: #F4F4F5;
-        --chip-text: #27272A;
-        --chip-border: #E4E4E7;
+    :root[data-theme="dark"] {
+        --bg-canvas: #0F172A;
+        --bg-surface: #1E293B;
+        --bg-subtle: #263349;
+        --bg-input: #1E293B;
+        --border-color: #334155;
+        --border-strong: #38BDF8;
+        --text-primary: #F8FAFC;
+        --text-secondary: #CBD5E1;
+        --text-muted: #94A3B8;
+        --accent-primary: #38BDF8;
+        --accent-hover: #0EA5E9;
+        --accent-soft: rgba(56, 189, 248, 0.14);
+        --accent-border: rgba(56, 189, 248, 0.35);
+        --header-bg: linear-gradient(120deg, #1E293B 0%, #172554 60%, #0F292E 100%);
+        --chosen-bg: rgba(16, 185, 129, 0.14);
+        --chosen-border: #10B981;
+        --chosen-text: #A7F3D0;
+        --chip-bg: #0F172A;
+        --chip-text: #E2E8F0;
+        --chip-border: #334155;
+        --card-shadow: 0 4px 16px rgba(2, 6, 23, 0.35);
     }
 
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
@@ -157,13 +161,13 @@ st.markdown(
     }
     [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p, .stCaption {
         color: var(--text-secondary) !important;
-        font-size: 0.82rem !important;
+        font-size: 0.84rem !important;
     }
 
     .block-container {
-        padding-top: 1.25rem !important;
+        padding-top: 1.15rem !important;
         padding-bottom: 3rem !important;
-        max-width: 1120px !important;
+        max-width: 1140px !important;
     }
     #MainMenu, footer, header[data-testid="stHeader"] {
         background: transparent !important;
@@ -172,141 +176,145 @@ st.markdown(
     .topbar-meta {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        padding-top: 0.35rem;
+        gap: 0.65rem;
+        padding-top: 0.3rem;
+    }
+    .brand-badge {
+        background: var(--accent-primary);
+        color: #FFFFFF;
         font-family: 'JetBrains Mono', monospace;
-        font-size: 0.82rem;
-    }
-    .brand-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #10B981;
-        display: inline-block;
-    }
-    .brand-name {
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-    .brand-sep {
-        color: var(--text-muted);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        padding: 0.2rem 0.55rem;
+        border-radius: 5px;
     }
     .brand-sub {
         color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 500;
     }
 
+    /* Vibrant Studio Header Card */
     .console-header {
-        border-bottom: 1px solid var(--border-color);
-        padding: 0.6rem 0 1.25rem 0;
-        margin-bottom: 1.25rem;
+        background: var(--header-bg);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--accent-primary);
+        border-radius: 12px;
+        padding: 1.35rem 1.6rem;
+        margin: 0.3rem 0 1.25rem 0;
+        box-shadow: var(--card-shadow);
     }
     .console-header h1 {
         color: var(--text-primary) !important;
-        font-size: 1.75rem !important;
-        font-weight: 600 !important;
+        font-size: 1.85rem !important;
+        font-weight: 700 !important;
         letter-spacing: -0.025em !important;
         line-height: 1.2 !important;
-        margin: 0 0 0.4rem 0 !important;
+        margin: 0 0 0.35rem 0 !important;
     }
     .console-header p {
         color: var(--text-secondary) !important;
-        font-size: 0.94rem !important;
+        font-size: 0.95rem !important;
         line-height: 1.55 !important;
         margin: 0 !important;
-        max-width: 760px;
+        max-width: 780px;
     }
 
     h2.sec-h2 {
         color: var(--text-primary) !important;
-        font-size: 1.15rem !important;
-        font-weight: 600 !important;
+        font-size: 1.2rem !important;
+        font-weight: 700 !important;
         letter-spacing: -0.015em !important;
-        margin: 0.25rem 0 0.15rem 0 !important;
+        margin: 0.35rem 0 0.15rem 0 !important;
     }
     p.sec-sub {
         color: var(--text-secondary) !important;
-        font-size: 0.88rem !important;
+        font-size: 0.9rem !important;
         margin-bottom: 1rem !important;
     }
     h3.card-h3 {
         color: var(--text-primary) !important;
-        font-size: 1.05rem !important;
-        font-weight: 600 !important;
+        font-size: 1.08rem !important;
+        font-weight: 700 !important;
         letter-spacing: -0.01em !important;
         margin: 0 !important;
     }
     h4.col-h4-good {
-        color: #10B981 !important;
+        color: #059669 !important;
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.74rem !important;
-        font-weight: 600 !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
         letter-spacing: 0.05em !important;
         text-transform: uppercase !important;
         margin: 0 0 0.5rem 0 !important;
     }
     h4.col-h4-bad {
-        color: #F43F5E !important;
+        color: #E11D48 !important;
         font-family: 'JetBrains Mono', monospace !important;
-        font-size: 0.74rem !important;
-        font-weight: 600 !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
         letter-spacing: 0.05em !important;
         text-transform: uppercase !important;
         margin: 0 0 0.5rem 0 !important;
     }
 
+    /* Clean Crisp Cards */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 8px !important;
-        box-shadow: none !important;
+        border-radius: 10px !important;
+        box-shadow: var(--card-shadow) !important;
     }
     div[data-testid="stVerticalBlockBorderWrapper"]:hover {
         border-color: var(--border-strong) !important;
     }
 
+    /* Vibrant Pill-Underline Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent !important;
-        border: none !important;
-        border-bottom: 1px solid var(--border-color) !important;
-        border-radius: 0 !important;
-        padding: 0 !important;
-        gap: 1.5rem !important;
-        box-shadow: none !important;
-        margin-bottom: 1rem !important;
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 10px !important;
+        padding: 0.3rem !important;
+        gap: 0.35rem !important;
+        box-shadow: var(--card-shadow);
+        margin-bottom: 1.1rem !important;
     }
     .stTabs [data-baseweb="tab"] {
         background: transparent !important;
         color: var(--text-secondary) !important;
-        border-radius: 0 !important;
-        font-weight: 500 !important;
+        border-radius: 7px !important;
+        font-weight: 600 !important;
         font-size: 0.9rem !important;
-        padding: 0.55rem 0.15rem !important;
-        border-bottom: 2px solid transparent !important;
+        padding: 0.45rem 1rem !important;
+        border: none !important;
     }
     .stTabs [data-baseweb="tab"]:hover {
+        background: var(--bg-subtle) !important;
         color: var(--text-primary) !important;
     }
     .stTabs [aria-selected="true"] {
-        background: transparent !important;
-        color: var(--text-primary) !important;
+        background: var(--accent-primary) !important;
+        color: #FFFFFF !important;
         font-weight: 600 !important;
-        border-bottom: 2px solid var(--accent-highlight) !important;
     }
     .stTabs [data-baseweb="tab-highlight"] {
-        background-color: var(--accent-highlight) !important;
+        display: none !important;
     }
 
+    /* Inputs & Expanders */
     [data-baseweb="input"] > div,
     [data-baseweb="textarea"] > div,
     [data-baseweb="select"] > div {
         background-color: var(--bg-input) !important;
         border: 1px solid var(--border-color) !important;
         color: var(--text-primary) !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
     }
     [data-baseweb="input"] > div:focus-within,
     [data-baseweb="textarea"] > div:focus-within {
-        border-color: var(--border-strong) !important;
+        border-color: var(--accent-primary) !important;
+        box-shadow: 0 0 0 2px var(--accent-soft) !important;
     }
     input, textarea {
         color: var(--text-primary) !important;
@@ -315,77 +323,81 @@ st.markdown(
     [data-testid="stExpander"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 6px !important;
+        border-radius: 8px !important;
     }
     [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {
-        color: var(--text-secondary) !important;
-        font-size: 0.86rem !important;
-        font-weight: 500 !important;
+        color: var(--text-primary) !important;
+        font-size: 0.88rem !important;
+        font-weight: 600 !important;
     }
 
+    /* Vibrant Cobalt Buttons */
     .stButton > button, .stDownloadButton > button {
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 6px !important;
-        font-weight: 500 !important;
-        font-size: 0.85rem !important;
-        padding: 0.42rem 0.85rem !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 0.86rem !important;
+        padding: 0.45rem 0.9rem !important;
         box-shadow: none !important;
     }
     .stButton > button:hover, .stDownloadButton > button:hover {
-        background-color: var(--bg-subtle) !important;
-        border-color: var(--border-strong) !important;
-        color: var(--text-primary) !important;
+        background-color: var(--accent-soft) !important;
+        border-color: var(--accent-primary) !important;
+        color: var(--accent-primary) !important;
     }
     .stButton > button[kind="primary"] {
-        background: var(--accent-solid) !important;
-        color: var(--accent-solid-text) !important;
-        border: 1px solid var(--accent-solid) !important;
+        background: var(--accent-primary) !important;
+        color: #FFFFFF !important;
+        border: 1px solid var(--accent-primary) !important;
         font-weight: 600 !important;
     }
     .stButton > button[kind="primary"]:hover {
-        opacity: 0.9;
+        background: var(--accent-hover) !important;
+        color: #FFFFFF !important;
     }
 
+    /* Decision Callouts & Metadata Chips */
     .chosen-box {
         background: var(--chosen-bg);
-        border-left: 3px solid var(--chosen-border);
+        border-left: 4px solid var(--chosen-border);
         color: var(--chosen-text);
-        padding: 0.75rem 0.95rem;
-        border-radius: 0 6px 6px 0;
-        font-size: 0.9rem;
-        line-height: 1.5;
+        padding: 0.8rem 1rem;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.92rem;
+        line-height: 1.55;
         margin-bottom: 0.75rem;
     }
     .code-chip {
         display: inline-block;
-        background: var(--chip-bg);
-        color: var(--chip-text);
-        border: 1px solid var(--chip-border);
-        font-size: 0.75rem;
-        padding: 0.14rem 0.48rem;
-        border-radius: 4px;
-        margin: 0.12rem 0.22rem 0.12rem 0;
+        background: var(--accent-soft);
+        color: var(--accent-primary);
+        border: 1px solid var(--accent-border);
+        font-size: 0.76rem;
+        font-weight: 500;
+        padding: 0.16rem 0.52rem;
+        border-radius: 5px;
+        margin: 0.12rem 0.25rem 0.12rem 0;
     }
     .pill-active {
-        background: rgba(16, 185, 129, 0.12);
-        color: #10B981;
-        border: 1px solid rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.14);
+        color: #059669;
+        border: 1px solid rgba(16, 185, 129, 0.35);
         font-family: 'JetBrains Mono', monospace;
-        padding: 0.16rem 0.55rem;
-        border-radius: 4px;
-        font-size: 0.72rem;
-        font-weight: 600;
+        padding: 0.18rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.73rem;
+        font-weight: 700;
     }
     .pill-outdated {
-        background: var(--bg-subtle);
+        background: var(--chip-bg);
         color: var(--text-secondary);
         border: 1px solid var(--border-color);
         font-family: 'JetBrains Mono', monospace;
-        padding: 0.16rem 0.55rem;
-        border-radius: 4px;
-        font-size: 0.72rem;
+        padding: 0.18rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.73rem;
         font-weight: 600;
     }
     </style>
@@ -472,7 +484,7 @@ with tab_guide:
     )
 
     p1, p2, p3, p4 = st.columns(4)
-    if p1.button("Filter: __note__", use_container_width=True):
+    if p1.button("Filter: note / exceptions", use_container_width=True):
         st.session_state["search_box"] = "__note__"
     if p2.button("Filter: subinterpreter", use_container_width=True):
         st.session_state["search_box"] = "subinterpreter"
