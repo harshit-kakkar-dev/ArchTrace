@@ -405,6 +405,17 @@ with tab_guide:
             "or index a public repository in the **📥 Index Repository** tab."
         )
     else:
+        md_lines = ["# Architectural Decisions & Rejected Alternatives\n"]
+        for d in hits:
+            md_lines.append(f"## {d['title']} (`{d['status']}`)\n- **Decision:** {d['final_decision']}\n- **Rationale:** {d['rationale']}\n- **Source:** {d['source_url']}\n")
+            for a in d["rejected_alternatives"]:
+                md_lines.append(f"  - ❌ **Rejected:** {a.get('idea')} — *{a.get('reason_rejected')}*\n")
+        st.download_button(
+            "📄 Export Decisions as ADR Markdown",
+            data="\n".join(md_lines),
+            file_name="ARCHTRACE_DECISIONS.md",
+            mime="text/markdown",
+        )
         st.caption(f"Showing **{len(hits)}** verified architectural decision brief(s)")
         for item in hits:
             with st.container(border=True):
