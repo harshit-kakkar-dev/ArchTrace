@@ -23,9 +23,9 @@ from archtrace.identity import IdentityResolver
 from archtrace.ingestion import (
     fetch_discourse_thread,
     fetch_github_discussion,
+    fetch_github_repo_threads,
     filter_new_or_updated_posts,
 )
-
 load_dotenv()
 st.set_page_config(page_title="ArchTrace — Architectural Decision Recovery", layout="wide")
 init_db()
@@ -145,43 +145,85 @@ with tab1:
 # TAB 2: LIVE MULTI-SOURCE INGESTION
 # =====================================================================
 with tab2:
-    st.subheader("Ingest Public GitHub Issues, PRs, or Discourse Threads")
-    source_type = st.radio("Source Platform", ["GitHub Issue / PR", "Discourse Forum"], horizontal=True)
-    default_url = (
-        "https://github.com/pallets/flask/issues/4612"
-        if "GitHub" in source_type
-        else "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
+    st.subheader("Ingest Any Public GitHub Repository, Issue/PR, or Discourse Thread")
+    source_type = st.radio(
+        "Ingestion Mode",
+        ["Batch-Index Any GitHub Repository (owner/repo)", "Single GitHub Issue / PR", "Discourse Forum Thread"],
+        horizontal=True,
     )
-    url_input = st.text_input("Public Thread URL", value=default_url)
-    files_input = st.text_input("Optional File Path Tags (comma-separated)", value="Objects/exceptions.c, Lib/traceback.py")
-    symbols_input = st.text_input("Optional Symbol Tags (comma-separated)", value="BaseException.add_note, __note__")
 
-    if st.button("📥 Ingest & Extract Decisions"):
-        with st.spinner("Fetching discussion and running incremental filter..."):
-            try:
-                posts = (
-                    fetch_github_discussion(url_input)
-                    if "GitHub" in source_type
-                    else fetch_discourse_thread(url_input)
-                )
-                new_posts, skipped = filter_new_or_updated_posts(url_input, posts)
-                st.info(f"Incremental Sync: **{len(new_posts)} new**, **{skipped} skipped**.")
+    if "Batch-Index" in source_type:
+        repo_slug = st.text_input("Public GitHub Repository (`owner/repo`)", value="pallets/flask")
+        max_threads = st.slider("Top Discussed Closed Issues/PRs to Index", min_value=2, max_value=12, value=5)
 
-                files_list = [f.strip() for f in files_input.split(",") if f.strip()]
-                syms_list = [s.strip() for s in symbols_input.split(",") if s.strip()]
-                out = extract_decisions_from_posts(
-                    url_input,
-                    posts,
-                    provider=provider,
-                    api_key=api_key,
-                    target_files=files_list,
-                    target_symbols=syms_list,
-                )
-                st.success("Stored decision in ArchTrace institutional memory!")
-                st.json(out)
-            except Exception as exc:
-                st.error(f"Ingestion failed: {exc}")
+        if st.button("🚀 Batch-Index Repository Decisions", type="primary"):
+            with st.spinner(f"Scanning top discussed issues & PRs in {repo_slug}..."):
+                try:
+                    threads = fetch_github_repo_threads(repo_slug, max_threads=max_threads)
+                    total_new, total_skipped = 0, 0
+                    extracted_list = []
 
+                    for t in threads:
+                        new_p, skip_p = filter_new_or_updated_posts(t["url"], t["posts"])
+                        total_new += len(new_p)
+                        total_skipped += skip_p
+                        if new_p or skip_p:
+                            dec = extract_decisions_from_posts(
+                                t["url"],
+                                t["posts"],
+                                provider=provider,
+                                api_key=api_key,
+                            )
+                            extracted_list.append((t, dec))
+
+                    st.success(
+                        f"Indexed **{len(extracted_list)} threads** from `{repo_slug}`! "
+                        f"(Incremental Sync: **{total_new} new posts processed**, **{total_skipped} unchanged skipped**)"
+                    )
+                    for t, dec in extracted_list:
+                        with st.expander(f"#{t['number']} — {dec.get('title', t['title'])}", expanded=False):
+                            st.markdown(f"- **Source:** [{t['url']}]({t['url']})")
+                            st.markdown(f"- **Decision:** {dec.get('final_decision')}")
+                            st.markdown(f"- **Linked Files:** `{', '.join(dec.get('affected_files', []))}`")
+                            for alt in dec.get("rejected_alternatives", [])[:3]:
+                                st.markdown(f"  - ❌ **{alt.get('idea')}** (*\"{alt.get('verbatim_quote')}\"*)")
+                except Exception as exc:
+                    st.error(f"Repository indexing failed: {exc}")
+    else:
+        default_url = (
+            "https://github.com/pallets/flask/issues/4612"
+            if "GitHub" in source_type
+            else "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
+        )
+        url_input = st.text_input("Public Thread URL", value=default_url)
+        files_input = st.text_input("Optional File Path Tags (comma-separated)", value="")
+        symbols_input = st.text_input("Optional Symbol Tags (comma-separated)", value="")
+
+        if st.button("📥 Ingest & Extract Decisions"):
+            with st.spinner("Fetching discussion and running incremental filter..."):
+                try:
+                    posts = (
+                        fetch_github_discussion(url_input)
+                        if "GitHub" in source_type
+                        else fetch_discourse_thread(url_input)
+                    )
+                    new_posts, skipped = filter_new_or_updated_posts(url_input, posts)
+                    st.info(f"Incremental Sync: **{len(new_posts)} new**, **{skipped} skipped**.")
+
+                    files_list = [f.strip() for f in files_input.split(",") if f.strip()]
+                    syms_list = [s.strip() for s in symbols_input.split(",") if s.strip()]
+                    out = extract_decisions_from_posts(
+                        url_input,
+                        posts,
+                        provider=provider,
+                        api_key=api_key,
+                        target_files=files_list,
+                        target_symbols=syms_list,
+                    )
+                    st.success("Stored decision in ArchTrace institutional memory!")
+                    st.json(out)
+                except Exception as exc:
+                    st.error(f"Ingestion failed: {exc}")
 # =====================================================================
 # TAB 3: PR MEMORY BOT & SELF-IMPROVING EPISODIC MEMORY
 # =====================================================================
