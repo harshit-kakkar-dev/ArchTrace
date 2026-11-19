@@ -144,3 +144,37 @@ def fetch_github_repo_threads(
             "posts": posts,
         })
     return threads
+def fetch_mailing_list_archive(archive_url: str, max_messages: int = 15) -> List[Dict]:
+    """Fetches public mailing list archive threads (e.g., Python-Dev Pipermail .txt or HTML)."""
+    resp = requests.get(archive_url.strip(), headers=HEADERS, timeout=15)
+    resp.raise_for_status()
+    raw_text = resp.text
+
+    if "<html" in raw_text.lower():
+        soup = BeautifulSoup(raw_text, "html.parser")
+        clean_text = soup.get_text("\n", strip=True)
+        return [{
+            "post_id": "ml-html-1",
+            "author": "mailing_list_participant",
+            "display_name": "Mailing List Archive",
+            "timestamp": "",
+            "body": clean_text[:12000],
+            "url": archive_url,
+        }]
+
+    chunks = [c.strip() for c in raw_text.split("\nFrom ") if c.strip()]
+    posts: List[Dict] = []
+    for idx, chunk in enumerate(chunks[:max_messages], start=1):
+        lines = chunk.splitlines()
+        author = lines[0].split(" at ")[0].strip() if lines else f"sender_{idx}"
+        body = "\n".join(lines[1:]).strip()
+        if body:
+            posts.append({
+                "post_id": f"ml-{idx}",
+                "author": author,
+                "display_name": author,
+                "timestamp": "",
+                "body": body[:4000],
+                "url": archive_url,
+            })
+    return posts
