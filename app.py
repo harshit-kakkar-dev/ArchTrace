@@ -35,7 +35,7 @@ from archtrace.pr_bot import format_pr_comment
 load_dotenv()
 st.set_page_config(
     page_title="ArchTrace — Institutional Memory for Open Source",
-    page_icon="🧭",
+    page_icon="⌘",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -61,7 +61,7 @@ def build_adr_markdown(item: dict) -> str:
         "## Rejected Alternatives",
     ]
     for alt in item.get("rejected_alternatives", []):
-        lines.append(f"### ❌ {alt.get('idea', 'Alternative')}")
+        lines.append(f"### Rejected: {alt.get('idea', 'Alternative')}")
         lines.append(f"- **Why Rejected:** {alt.get('reason_rejected', '')}")
         lines.append(f"- **Author:** {alt.get('author', 'unknown')}")
         lines.append(f"- **Source:** {alt.get('source_url', item['source_url'])}")
@@ -70,17 +70,18 @@ def build_adr_markdown(item: dict) -> str:
     return "\n".join(lines)
 
 
-# Top Utility Bar with Live Light / Dark Theme Toggle
-top_l, top_r = st.columns([4.5, 1])
+# Minimal Top Navigation Bar
+top_l, top_r = st.columns([5, 1])
 with top_l:
     st.markdown(
-        '<div style="padding-top:6px;font-size:0.85rem;font-weight:600;opacity:0.75;">'
-        "🧭 Open-Source Contributor & Maintainer Portal"
-        "</div>",
+        '<div class="topbar-meta"><span class="brand-dot"></span>'
+        '<span class="brand-name">archtrace</span>'
+        '<span class="brand-sep">/</span>'
+        '<span class="brand-sub">architectural decision registry</span></div>',
         unsafe_allow_html=True,
     )
 with top_r:
-    dark_mode = st.toggle("🌙 Dark Mode", value=True, key="ui_dark_mode")
+    dark_mode = st.toggle("Dark theme", value=True, key="ui_dark_mode")
 
 active_theme = "dark" if dark_mode else "light"
 components.html(
@@ -96,71 +97,216 @@ components.html(
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     :root, :root[data-theme="dark"] {
-        --bg-canvas: #090D16;
-        --bg-surface: #111827;
-        --bg-input: #1E293B;
-        --border-color: rgba(148, 163, 184, 0.2);
-        --text-primary: #F8FAFC;
-        --text-secondary: #94A3B8;
-        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.25), transparent 50%),
-                   linear-gradient(135deg, #1E1B4B 0%, #0F172A 100%);
-        --hero-border: rgba(99, 102, 241, 0.4);
-        --hero-title: #FFFFFF;
-        --hero-tagline: #A5B4FC;
-        --hero-body: #CBD5E1;
-        --chosen-bg: rgba(16, 185, 129, 0.14);
-        --chosen-text: #ECFDF5;
-        --chip-bg: rgba(99, 102, 241, 0.18);
-        --chip-text: #C7D2FE;
-        --chip-border: rgba(129, 140, 248, 0.3);
-        --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+        --bg-canvas: #09090B;
+        --bg-surface: #111114;
+        --bg-subtle: #18181B;
+        --bg-input: #121215;
+        --border-color: #27272A;
+        --border-strong: #3F3F46;
+        --text-primary: #FAFAFA;
+        --text-secondary: #A1A1AA;
+        --text-muted: #71717A;
+        --accent-solid: #FAFAFA;
+        --accent-solid-text: #09090B;
+        --accent-highlight: #E4E4E7;
+        --chosen-bg: rgba(16, 185, 129, 0.08);
+        --chosen-border: #10B981;
+        --chosen-text: #D1FAE5;
+        --chip-bg: #18181B;
+        --chip-text: #D4D4D8;
+        --chip-border: #27272A;
     }
 
     :root[data-theme="light"] {
-        --bg-canvas: #F4F7FB;
+        --bg-canvas: #FAFAFA;
         --bg-surface: #FFFFFF;
-        --bg-input: #F8FAFC;
-        --border-color: #CBD5E1;
-        --text-primary: #0F172A;
-        --text-secondary: #475569;
-        --hero-bg: radial-gradient(circle at top right, rgba(6,182,212,0.18), transparent 50%),
-                   linear-gradient(135deg, #EEF2FF 0%, #E0F2FE 100%);
-        --hero-border: #A5B4FC;
-        --hero-title: #0F172A;
-        --hero-tagline: #4338CA;
-        --hero-body: #334155;
-        --chosen-bg: #ECFDF5;
-        --chosen-text: #064E3B;
-        --chip-bg: #EEF2FF;
-        --chip-text: #3730A3;
-        --chip-border: #C7D2FE;
-        --shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+        --bg-subtle: #F4F4F5;
+        --bg-input: #FFFFFF;
+        --border-color: #E4E4E7;
+        --border-strong: #D4D4D8;
+        --text-primary: #09090B;
+        --text-secondary: #52525B;
+        --text-muted: #71717A;
+        --accent-solid: #18181B;
+        --accent-solid-text: #FAFAFA;
+        --accent-highlight: #18181B;
+        --chosen-bg: #F0FDF4;
+        --chosen-border: #16A34A;
+        --chosen-text: #14532D;
+        --chip-bg: #F4F4F5;
+        --chip-text: #27272A;
+        --chip-border: #E4E4E7;
     }
 
     html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
         background-color: var(--bg-canvas) !important;
         color: var(--text-primary) !important;
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        -webkit-font-smoothing: antialiased;
     }
 
-    .stMarkdown p, .stMarkdown li, .stMarkdown span, label, [data-testid="stWidgetLabel"] p,
-    [data-testid="stCaptionContainer"], .stCaption {
+    code, pre, .stCode, .code-chip {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    .stMarkdown p, .stMarkdown li, .stMarkdown span, label, [data-testid="stWidgetLabel"] p {
         color: var(--text-primary) !important;
     }
-    [data-testid="stCaptionContainer"] p {
+    [data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p, .stCaption {
         color: var(--text-secondary) !important;
+        font-size: 0.82rem !important;
+    }
+
+    .block-container {
+        padding-top: 1.25rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1120px !important;
+    }
+    #MainMenu, footer, header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
+    .topbar-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding-top: 0.35rem;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+    }
+    .brand-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10B981;
+        display: inline-block;
+    }
+    .brand-name {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    .brand-sep {
+        color: var(--text-muted);
+    }
+    .brand-sub {
+        color: var(--text-secondary);
+    }
+
+    .console-header {
+        border-bottom: 1px solid var(--border-color);
+        padding: 0.6rem 0 1.25rem 0;
+        margin-bottom: 1.25rem;
+    }
+    .console-header h1 {
+        color: var(--text-primary) !important;
+        font-size: 1.75rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.025em !important;
+        line-height: 1.2 !important;
+        margin: 0 0 0.4rem 0 !important;
+    }
+    .console-header p {
+        color: var(--text-secondary) !important;
+        font-size: 0.94rem !important;
+        line-height: 1.55 !important;
+        margin: 0 !important;
+        max-width: 760px;
+    }
+
+    h2.sec-h2 {
+        color: var(--text-primary) !important;
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.015em !important;
+        margin: 0.25rem 0 0.15rem 0 !important;
+    }
+    p.sec-sub {
+        color: var(--text-secondary) !important;
+        font-size: 0.88rem !important;
+        margin-bottom: 1rem !important;
+    }
+    h3.card-h3 {
+        color: var(--text-primary) !important;
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.01em !important;
+        margin: 0 !important;
+    }
+    h4.col-h4-good {
+        color: #10B981 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.74rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+        margin: 0 0 0.5rem 0 !important;
+    }
+    h4.col-h4-bad {
+        color: #F43F5E !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.74rem !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.05em !important;
+        text-transform: uppercase !important;
+        margin: 0 0 0.5rem 0 !important;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background-color: var(--bg-surface) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
+        border-color: var(--border-strong) !important;
+    }
+
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 1px solid var(--border-color) !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        gap: 1.5rem !important;
+        box-shadow: none !important;
+        margin-bottom: 1rem !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background: transparent !important;
+        color: var(--text-secondary) !important;
+        border-radius: 0 !important;
+        font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        padding: 0.55rem 0.15rem !important;
+        border-bottom: 2px solid transparent !important;
+    }
+    .stTabs [data-baseweb="tab"]:hover {
+        color: var(--text-primary) !important;
+    }
+    .stTabs [aria-selected="true"] {
+        background: transparent !important;
+        color: var(--text-primary) !important;
+        font-weight: 600 !important;
+        border-bottom: 2px solid var(--accent-highlight) !important;
+    }
+    .stTabs [data-baseweb="tab-highlight"] {
+        background-color: var(--accent-highlight) !important;
     }
 
     [data-baseweb="input"] > div,
     [data-baseweb="textarea"] > div,
     [data-baseweb="select"] > div {
         background-color: var(--bg-input) !important;
-        border-color: var(--border-color) !important;
+        border: 1px solid var(--border-color) !important;
         color: var(--text-primary) !important;
-        border-radius: 10px !important;
+        border-radius: 6px !important;
+    }
+    [data-baseweb="input"] > div:focus-within,
+    [data-baseweb="textarea"] > div:focus-within {
+        border-color: var(--border-strong) !important;
     }
     input, textarea {
         color: var(--text-primary) !important;
@@ -169,182 +315,87 @@ st.markdown(
     [data-testid="stExpander"] {
         background-color: var(--bg-surface) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 12px !important;
+        border-radius: 6px !important;
     }
     [data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {
-        color: var(--text-primary) !important;
-    }
-
-    .block-container {
-        padding-top: 1.1rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 1200px !important;
-    }
-    #MainMenu, footer, header[data-testid="stHeader"] {
-        background: transparent !important;
-    }
-
-    .archtrace-hero {
-        background: var(--hero-bg);
-        border: 1px solid var(--hero-border);
-        border-radius: 22px;
-        padding: 2.2rem 2.5rem;
-        margin: 0.35rem 0 1.5rem 0;
-        box-shadow: var(--shadow);
-    }
-    .archtrace-hero h1 {
-        color: var(--hero-title) !important;
-        font-size: 2.65rem !important;
-        font-weight: 800 !important;
-        letter-spacing: -0.03em !important;
-        line-height: 1.12 !important;
-        margin: 0 0 0.35rem 0 !important;
-    }
-    .hero-tagline {
-        color: var(--hero-tagline) !important;
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.01em !important;
-        margin: 0 0 0.7rem 0 !important;
-    }
-    .archtrace-hero p.hero-desc {
-        color: var(--hero-body) !important;
-        font-size: 1.02rem !important;
-        line-height: 1.6 !important;
-        margin: 0 !important;
-        max-width: 820px;
-    }
-
-    h2.sec-h2 {
-        color: var(--text-primary) !important;
-        font-size: 1.45rem !important;
-        font-weight: 700 !important;
-        letter-spacing: -0.015em !important;
-        margin: 0.4rem 0 0.2rem 0 !important;
-    }
-    p.sec-sub {
         color: var(--text-secondary) !important;
-        font-size: 0.96rem !important;
-        margin-bottom: 1.15rem !important;
-    }
-    h3.card-h3 {
-        color: var(--text-primary) !important;
-        font-size: 1.2rem !important;
-        font-weight: 700 !important;
-        margin: 0 !important;
-    }
-    h4.col-h4-good {
-        color: #10B981 !important;
-        font-size: 0.84rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.06em !important;
-        text-transform: uppercase !important;
-        margin: 0 0 0.55rem 0 !important;
-    }
-    h4.col-h4-bad {
-        color: #F43F5E !important;
-        font-size: 0.84rem !important;
-        font-weight: 800 !important;
-        letter-spacing: 0.06em !important;
-        text-transform: uppercase !important;
-        margin: 0 0 0.55rem 0 !important;
-    }
-
-    div[data-testid="stVerticalBlockBorderWrapper"] {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 16px !important;
-        box-shadow: var(--shadow) !important;
-        transition: transform 0.18s ease, border-color 0.18s ease;
-    }
-    div[data-testid="stVerticalBlockBorderWrapper"]:hover {
-        border-color: #6366F1 !important;
-        transform: translateY(-2px);
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: var(--bg-surface) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 14px !important;
-        padding: 0.35rem !important;
-        gap: 0.4rem !important;
-        box-shadow: var(--shadow);
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: var(--text-secondary) !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
-        padding: 0.5rem 1.05rem !important;
-    }
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
-        color: #FFFFFF !important;
+        font-size: 0.86rem !important;
+        font-weight: 500 !important;
     }
 
     .stButton > button, .stDownloadButton > button {
         background-color: var(--bg-surface) !important;
         color: var(--text-primary) !important;
         border: 1px solid var(--border-color) !important;
-        border-radius: 10px !important;
-        font-weight: 600 !important;
+        border-radius: 6px !important;
+        font-weight: 500 !important;
+        font-size: 0.85rem !important;
+        padding: 0.42rem 0.85rem !important;
+        box-shadow: none !important;
     }
     .stButton > button:hover, .stDownloadButton > button:hover {
-        border-color: #6366F1 !important;
-        color: #6366F1 !important;
+        background-color: var(--bg-subtle) !important;
+        border-color: var(--border-strong) !important;
+        color: var(--text-primary) !important;
     }
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #4F46E5, #6366F1) !important;
-        color: #FFFFFF !important;
-        border: none !important;
+        background: var(--accent-solid) !important;
+        color: var(--accent-solid-text) !important;
+        border: 1px solid var(--accent-solid) !important;
+        font-weight: 600 !important;
+    }
+    .stButton > button[kind="primary"]:hover {
+        opacity: 0.9;
     }
 
     .chosen-box {
         background: var(--chosen-bg);
-        border-left: 4px solid #10B981;
+        border-left: 3px solid var(--chosen-border);
         color: var(--chosen-text);
-        padding: 0.9rem 1.05rem;
-        border-radius: 0 12px 12px 0;
-        font-size: 0.96rem;
+        padding: 0.75rem 0.95rem;
+        border-radius: 0 6px 6px 0;
+        font-size: 0.9rem;
         line-height: 1.5;
-        margin-bottom: 0.8rem;
+        margin-bottom: 0.75rem;
     }
     .code-chip {
         display: inline-block;
         background: var(--chip-bg);
         color: var(--chip-text);
         border: 1px solid var(--chip-border);
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.76rem;
-        padding: 0.18rem 0.55rem;
-        border-radius: 7px;
-        margin: 0.15rem 0.25rem 0.15rem 0;
+        font-size: 0.75rem;
+        padding: 0.14rem 0.48rem;
+        border-radius: 4px;
+        margin: 0.12rem 0.22rem 0.12rem 0;
     }
     .pill-active {
-        background: rgba(16, 185, 129, 0.14);
+        background: rgba(16, 185, 129, 0.12);
         color: #10B981;
-        border: 1px solid rgba(16, 185, 129, 0.35);
-        padding: 0.22rem 0.72rem;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 700;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        font-family: 'JetBrains Mono', monospace;
+        padding: 0.16rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
     }
     .pill-outdated {
-        background: rgba(148, 163, 184, 0.16);
+        background: var(--bg-subtle);
         color: var(--text-secondary);
         border: 1px solid var(--border-color);
-        padding: 0.22rem 0.72rem;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 700;
+        font-family: 'JetBrains Mono', monospace;
+        padding: 0.16rem 0.55rem;
+        border-radius: 4px;
+        font-size: 0.72rem;
+        font-weight: 600;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Collapsed Sidebar for Maintainer & Model Controls
+# Collapsed Sidebar for Engine & Model Settings
 with st.sidebar:
-    st.markdown("### ⚙️ Engine & Model Settings")
+    st.markdown("#### Engine Configuration")
     provider = st.selectbox(
         "LLM Provider",
         [
@@ -356,35 +407,36 @@ with st.sidebar:
     default_key = os.getenv("LLM_API_KEY", "")
     api_key = ""
     if "Offline" not in provider:
-        api_key = st.text_input("API Key (Groq / OpenRouter)", value=default_key, type="password")
+        api_key = st.text_input("API Key", value=default_key, type="password")
         st.caption("Auto-discovers active open-weight models; falls back offline if blank.")
 
-    with st.expander("📐 Under the Hood (For Judges)"):
+    with st.expander("Architecture Notes"):
         st.markdown(
-            "- **Blind Evaluation:** Recovers rejected ideas without seeing PEP text\n"
-            "- **Incremental Sync:** SHA-256 hashing skips unchanged comments\n"
-            "- **Rename Tracking:** `git log --diff-filter=R` + Python `ast` symbols\n"
+            "- **Blind Evaluation:** Recovers rejected ideas with PEP text withheld
+"
+            "- **Incremental Sync:** SHA-256 hashing skips unchanged comments
+"
+            "- **Rename Tracking:** `git log --diff-filter=R` + Python `ast` symbols
+"
             "- **Episodic Memory:** Learns from `/archtrace helpful|obsolete`"
         )
 
     st.divider()
-    if st.button("🗑️ Reset Local Database", use_container_width=True):
+    if st.button("Reset Local Database", use_container_width=True):
         if os.path.exists(DEFAULT_DB_PATH):
             os.remove(DEFAULT_DB_PATH)
         init_db()
         st.session_state.pop("pr_matches", None)
         st.session_state.pop("pep_result", None)
-        st.success("Database cleared!")
+        st.success("Database cleared.")
 
-# Semantic H1 Hero Banner
+# Minimal Editorial Header
 st.markdown(
     """
-    <div class="archtrace-hero">
-        <h1>🧭 ArchTrace</h1>
-        <div class="hero-tagline">Institutional Memory &amp; Unwritten Decision Recovery for Open Source</div>
-        <p class="hero-desc">
-            Understand why code was built this way before writing a single line. Ask in plain English, search any file path,
-            or inspect rejected ideas to surface past architectural choices and original maintainer threads.
+    <div class="console-header">
+        <h1>ArchTrace</h1>
+        <p>
+            Search architectural decisions, rejected design alternatives, and historical rationale across open-source discussions before modifying code.
         </p>
     </div>
     """,
@@ -392,45 +444,44 @@ st.markdown(
 )
 
 tab_guide, tab_repo, tab_pr, tab_bench = st.tabs([
-    "🧭 Contributor Explorer",
-    "📥 Index Repository",
-    "🤖 PR Guardian & Team",
-    "🧪 Blind Benchmark",
+    "Decision Explorer",
+    "Index Repository",
+    "PR Guardian",
+    "Blind Benchmark",
 ])
 
 # =====================================================================
 # TAB 1: CONTRIBUTOR-FIRST DECISION EXPLORER + HOTSPOTS + ADR EXPORT
 # =====================================================================
 with tab_guide:
-    # Upgrade 3: Decision Hotspots & Institutional Memory KPI Bar
     stats = get_decision_stats()
     if stats["total_decisions"] > 0:
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Decisions Tracked", stats["total_decisions"])
+        k1.metric("Decisions Indexed", stats["total_decisions"])
         k2.metric("Active Standards", stats["active_decisions"])
-        k3.metric("Rejected Ideas Saved", stats["total_rejected_ideas"])
-        top_file_label = stats["top_files"][0][0] if stats["top_files"] else "None tagged"
+        k3.metric("Rejected Alternatives", stats["total_rejected_ideas"])
+        top_file_label = stats["top_files"][0][0] if stats["top_files"] else "None"
         k4.metric("Top Debated File", top_file_label)
 
         if stats["top_files"]:
-            with st.expander("🔥 View Codebase Decision Hotspots (Most Debated Files)"):
+            with st.expander("Codebase Decision Hotspots"):
                 chart_data = {fname: count for fname, count in stats["top_files"]}
                 st.bar_chart(chart_data)
 
-    st.markdown('<h2 class="sec-h2">Explore Architectural Decisions</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="sec-h2">Query Architectural History</h2>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="sec-sub">Ask in plain English (e.g., <em>"I want to redesign the function generator"</em>) or search by file path / symbol.</p>',
+        '<p class="sec-sub">Search by plain-English intent, file path, symbol name, or rejected concept.</p>',
         unsafe_allow_html=True,
     )
 
     p1, p2, p3, p4 = st.columns(4)
-    if p1.button("✨ Exception `__notes__`", use_container_width=True):
+    if p1.button("Filter: __note__", use_container_width=True):
         st.session_state["search_box"] = "__note__"
-    if p2.button("✨ `list.discard()` vs `missing_ok`", use_container_width=True):
-        st.session_state["search_box"] = "missing_ok"
-    if p3.button("✨ Flask `wsgi.py` & Config", use_container_width=True):
+    if p2.button("Filter: subinterpreter", use_container_width=True):
+        st.session_state["search_box"] = "subinterpreter"
+    if p3.button("Filter: wsgi.py", use_container_width=True):
         st.session_state["search_box"] = "wsgi.py"
-    if p4.button("📚 Browse All Decisions", use_container_width=True):
+    if p4.button("Show All Decisions", use_container_width=True):
         st.session_state["search_box"] = ""
 
     col_q1, col_q2 = st.columns([4.2, 1])
@@ -460,14 +511,14 @@ with tab_guide:
     if not hits:
         st.info(
             "👋 No decisions matched your query yet. Click **Browse All Decisions** above, "
-            "or index a public repository in the **📥 Index Repository** tab."
+            "or index a public repository in the **Index Repository** tab."
         )
     else:
         md_lines = ["# Architectural Decisions & Rejected Alternatives\n"]
         for d in hits:
             md_lines.append(f"## {d['title']} (`{d['status']}`)\n- **Decision:** {d['final_decision']}\n- **Rationale:** {d['rationale']}\n- **Source:** {d['source_url']}\n")
             for a in d["rejected_alternatives"]:
-                md_lines.append(f"  - ❌ **Rejected:** {a.get('idea')} — *{a.get('reason_rejected')}*\n")
+                md_lines.append(f"  - **Rejected:** {a.get('idea')} — *{a.get('reason_rejected')}*\n")
         st.download_button(
             "📄 Export Decisions as ADR Markdown",
             data="\n".join(md_lines),
@@ -492,7 +543,7 @@ with tab_guide:
                 c_left, c_right = st.columns([1, 1.15], gap="large")
 
                 with c_left:
-                    st.markdown('<h4 class="col-h4-good">✅ What Was Chosen</h4>', unsafe_allow_html=True)
+                    st.markdown('<h4 class="col-h4-good">Accepted Decision</h4>', unsafe_allow_html=True)
                     st.markdown(f'<div class="chosen-box">{item["final_decision"]}</div>', unsafe_allow_html=True)
                     st.markdown(f"**Rationale:** {item['rationale']}")
 
@@ -537,7 +588,7 @@ with tab_guide:
                 with c_right:
                     st.markdown('<h4 class="col-h4-bad">🚫 Rejected Alternatives (Do Not Re-Propose)</h4>', unsafe_allow_html=True)
                     for alt in item["rejected_alternatives"]:
-                        with st.expander(f"❌ {alt.get('idea')}", expanded=True):
+                        with st.expander(f"Rejected: {alt.get('idea')}", expanded=True):
                             st.write(alt.get("reason_rejected"))
                             st.caption(f"Discussed by `{alt.get('author')}`")
                             st.markdown(f"> *\"{alt.get('verbatim_quote')}\"*")
@@ -570,7 +621,7 @@ with tab_repo:
         with c2:
             max_threads = st.number_input("Threads to scan", min_value=2, max_value=12, value=5)
 
-        if st.button("🚀 Scan & Index Repository", type="primary"):
+        if st.button("Scan & Index Repository", type="primary"):
             with st.spinner(f"Reading top discussed issues & PRs in {repo_slug}..."):
                 try:
                     threads = fetch_github_repo_threads(repo_slug, max_threads=int(max_threads))
@@ -610,7 +661,7 @@ with tab_repo:
             default_url = "https://discuss.python.org/t/pep-678-enriching-exceptions-with-notes/12641"
 
         url_input = st.text_input("Discussion URL", value=default_url)
-        if st.button("📥 Extract Decision", type="primary"):
+        if st.button("Extract Decision", type="primary"):
             with st.spinner("Analyzing discussion..."):
                 try:
                     if "GitHub" in source_type:
@@ -660,7 +711,7 @@ with tab_pr:
                 value="+ def attach_note(err):\n+     err.__note__ = 'retry failed'\n",
                 height=115,
             )
-            if st.button("🔍 Check Pull Request", type="primary", use_container_width=True):
+            if st.button("Check Pull Request", type="primary", use_container_width=True):
                 st.session_state["pr_matches"] = query_decisions_for_pr(pr_file, pr_diff)
                 st.session_state["last_pr_file"] = pr_file
                 if not st.session_state["pr_matches"]:
@@ -680,7 +731,7 @@ with tab_pr:
                 st.caption(f"Matched via: {', '.join(m['matched_reasons'])}")
                 st.write(f"**Current Standard:** {m['final_decision']}")
                 for alt in m["rejected_alternatives"]:
-                    st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
+                    st.markdown(f"- **Rejected:** {alt.get('idea')} — *{alt.get('reason_rejected')}*")
 
                 b1, b2, _ = st.columns([1, 1, 2])
                 if b1.button(f"👍 Helpful (#{m['id']})", key=f"help_{m['id']}"):
@@ -720,7 +771,7 @@ with tab_bench:
 
     c_run, c_live = st.columns([1, 2])
     fetch_live = c_live.checkbox("Fetch live thread from discuss.python.org (uncheck to use cached real posts)", value=True)
-    if c_run.button("🚀 Run Blind Benchmark", type="primary"):
+    if c_run.button("Run Blind Benchmark", type="primary"):
         with st.spinner("Extracting decisions (PEP hidden)..."):
             try:
                 posts = fetch_discourse_thread(benchmark["discourse_url"], max_posts=25) if fetch_live else benchmark["cached_real_posts"]
@@ -750,10 +801,10 @@ with tab_bench:
                 st.caption(f"Engine: `{res.get('extraction_mode', 'Heuristic')}`")
                 st.write(f"**Chosen:** {res.get('final_decision')}")
                 for alt in res.get("rejected_alternatives", []):
-                    st.markdown(f"- ❌ **{alt.get('idea')}** — *{alt.get('reason_rejected')}*")
+                    st.markdown(f"- **Rejected:** {alt.get('idea')} — *{alt.get('reason_rejected')}*")
         with col_r:
             with st.container(border=True):
                 st.markdown(f'<h3 class="card-h3">🔑 Official {bench["pep_number"]} Answer Key</h3>', unsafe_allow_html=True)
                 st.caption("Withheld during extraction")
                 for item in bench["ground_truth_rejected_ideas"]:
-                    st.markdown(f"- ✅ {item}")
+                    st.markdown(f"- {item}")
