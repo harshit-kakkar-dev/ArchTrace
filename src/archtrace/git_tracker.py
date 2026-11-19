@@ -173,46 +173,52 @@ def query_decisions_for_pr(
 
     conn.close()
     return matches
-def search_decisions(query: str, include_obsolete: bool = False, db_path: str = DEFAULT_DB_PATH) -> List[Dict]:
-    """Lets contributors search stored architectural decisions by keyword, file path (including renames), or symbol."""
-    q = query.strip().lower()
-    candidate_paths = {p.lower() for p in resolve_historical_paths(query.strip(), db_path=db_path)} if q else set()
+STOP_WORDS = {
+    "a", "an", "the", "is", "are", "was", "were", "to", "for", "of", "in", "on",
+    "why", "how", "what", "when", "can", "could", "should", "i", "we", "want",
+    "do", "does", "did", "not", "instead", "with", "use", "using", "add", "change",
+}
 
+def search_decisions(query: str = "", include_obsolete: bool = False, db_path: Path = DEFAULT_DB_PATH) -> List[Dict]:
     conn = get_connection(db_path)
-    cur = conn.cursor()
-    if include_obsolete:
-        cur.execute("SELECT * FROM decisions ORDER BY id DESC")
-    else:
-        cur.execute("SELECT * FROM decisions WHERE status = 'ACTIVE' ORDER BY id DESC")
-    rows = cur.fetchall()
+    rows = conn.execute("SELECT * FROM decisions ORDER BY helpful_votes DESC, id DESC").fetchall()
     conn.close()
 
-    results: List[Dict] = []
-    for row in rows:
-        files = json.loads(row["affected_files_json"] or "[]")
-        syms = json.loads(row["affected_symbols_json"] or "[]")
-        rejected = json.loads(row["rejected_alternatives_json"] or "[]")
+    raw_q = query.strip().lower()
+    raw_tokens = [t.strip("?.,!\"'()[]{}") for t in raw_q.split()]
+    tokens = [t for t in raw_tokens if len(t) > 1 and t not in STOP_WORDS]
 
-        searchable_blob = " ".join([
-            row["title"] or "",
-            row["final_decision"] or "",
-            row["rationale"] or "",
-            " ".join(files),
-            " ".join(syms),
-            " ".join(f"{r.get('idea', '')} {r.get('reason_rejected', '')}" for r in rejected),
+    scored_results: List[tuple[int, Dict]] = []
+    for r in rows:
+        item = dict(r)
+        if not include_obsolete and item["status"] == "OBSOLETE":
+            continue
+
+        item["rejected_alternatives"] = json.loads(item["rejected_alternatives_json"])
+        item["affected_files"] = json.loads(item["affected_files_json"])
+        item["affected_symbols"] = json.loads(item["affected_symbols_json"])
+
+        if not raw_q:
+            scored_results.append((1, item))
+            continue
+
+        blob = " ".join([
+            item["title"],
+            item["final_decision"],
+            item["rationale"],
+            " ".join(item["affected_files"]),
+            " ".join(item["affected_symbols"]),
+            " ".join(a.get("idea", "") + " " + a.get("reason_rejected", "") for a in item["rejected_alternatives"]),
         ]).lower()
 
-        path_hit = any(f.lower() in candidate_paths for f in files)
-        if not q or q in searchable_blob or path_hit:
-            results.append({
-                "id": row["id"],
-                "status": row["status"],
-                "source_url": row["source_url"],
-                "title": row["title"],
-                "final_decision": row["final_decision"],
-                "rationale": row["rationale"],
-                "affected_files": files,
-                "affected_symbols": syms,
-                "rejected_alternatives": rejected,
-            })
-    return results
+        score = 0
+        if raw_q in blob:
+            score += 10
+        for tok in tokens:
+            if tok in blob:
+                score += 2
+        if score > 0:
+            scored_results.append((score, item))
+
+    scored_results.sort(key=lambda pair: pair[0], reverse=True)
+    return [item for _, item in scored_results]

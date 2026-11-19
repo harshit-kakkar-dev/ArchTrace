@@ -398,7 +398,18 @@ with tab_guide:
         show_obsolete = st.toggle("Show outdated", value=False)
 
     hits = search_decisions(search_query, include_obsolete=show_obsolete)
+    all_active = search_decisions("", include_obsolete=False)
+    total_rejected = sum(len(d["rejected_alternatives"]) for d in all_active)
+    file_counts: dict[str, int] = {}
+    for d in all_active:
+        for f in d["affected_files"]:
+            file_counts[f] = file_counts.get(f, 0) + 1
+    top_file = max(file_counts.items(), key=lambda x: x[1])[0] if file_counts else "Objects/exceptions.c"
 
+    m1, m2, m3 = st.columns(3)
+    m1.metric("📚 Active Decisions Indexed", len(all_active))
+    m2.metric("🚫 Rejected Ideas Captured", total_rejected)
+    m3.metric("🔥 Top Debated File", top_file)
     if not hits:
         st.info(
             "👋 No decisions matched your query yet. Click **Browse All Decisions** above, "
@@ -444,6 +455,34 @@ with tab_guide:
 
                     st.write("")
                     st.link_button("🔗 Read Original Discussion Thread", item["source_url"])
+                    adr_lines = [
+                        f"# ADR-{item['id']:03d}: {item['title']}",
+                        f"- **Status:** {item['status']}",
+                        f"- **Source Thread:** {item['source_url']}",
+                        "",
+                        "## Chosen Decision",
+                        item["final_decision"],
+                        "",
+                        "## Rationale",
+                        item["rationale"],
+                        "",
+                        "## Rejected Alternatives",
+                    ]
+                    for alt in item["rejected_alternatives"]:
+                        adr_lines.append(f"- **{alt.get('idea')}**: {alt.get('reason_rejected')} *(Source: {alt.get('author')})*")
+
+                    btn_c1, btn_c2 = st.columns(2)
+                    with btn_c1:
+                        st.link_button("🔗 Original Thread", item["source_url"], use_container_width=True)
+                    with btn_c2:
+                        st.download_button(
+                            "📄 Export ADR (.md)",
+                            data="\n".join(adr_lines),
+                            file_name=f"ADR-{item['id']:03d}.md",
+                            mime="text/markdown",
+                            key=f"adr_dl_{item['id']}",
+                            use_container_width=True,
+                        )
 
                 with c_right:
                     st.markdown('<h4 class="col-h4-bad">🚫 Rejected Alternatives (Do Not Re-Propose)</h4>', unsafe_allow_html=True)
