@@ -1,3 +1,4 @@
+import re
 import os
 import subprocess
 import sys
@@ -32,6 +33,11 @@ def get_changed_files_and_diff(base_ref: str = "origin/main") -> dict[str, str]:
     return file_diffs
 
 
+def sanitize_mentions(text: str) -> str:
+    """Wrap raw @mentions in backticks so GitHub never pings external users."""
+    return re.sub(r'(?<!`)(?<!\w)@([A-Za-z0-9_-]+)(?!`)', r'`@\1`', text)
+
+
 def format_pr_comment(all_matches: list[tuple[str, dict]]) -> str:
     lines = [
         "## 🏛️ ArchTrace Institutional Memory Alert",
@@ -58,7 +64,7 @@ def format_pr_comment(all_matches: list[tuple[str, dict]]) -> str:
 
     lines.append("---")
     lines.append("*Reply with `/archtrace helpful` or `/archtrace obsolete` to update institutional memory.*")
-    return "\n".join(lines)
+    return sanitize_mentions("\n".join(lines))
 
 
 def post_github_pr_comment(repo: str, pr_number: str, token: str, body: str) -> None:
@@ -67,7 +73,7 @@ def post_github_pr_comment(repo: str, pr_number: str, token: str, body: str) -> 
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.github.v3+json",
     }
-    resp = requests.post(url, headers=headers, json={"body": body}, timeout=15)
+    resp = requests.post(url, headers=headers, json={"body": sanitize_mentions(body)}, timeout=15)
     resp.raise_for_status()
 
 
