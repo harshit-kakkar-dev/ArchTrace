@@ -30,7 +30,7 @@ jobs:
           PYTHONPATH: src
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: |
-          python -c "from archtrace.db import init_db; from archtrace.benchmarks import SAMPLE_PEP_BENCHMARKS; from archtrace.extractor import extract_decisions_from_posts; init_db(); b=SAMPLE_PEP_BENCHMARKS['PEP 678 – Enriching Exceptions with Notes (Discourse #12641)']; extract_decisions_from_posts(b['discourse_url'], b['synthetic_discussion_posts'], api_key='${LLM_API_KEY}', target_files=['src/archtrace/extractor.py'])"
+          python -c "import os; from archtrace.db import init_db; from archtrace.benchmarks import SAMPLE_PEP_BENCHMARKS; from archtrace.extractor import extract_decisions_from_posts; init_db(); b = next((v for k, v in SAMPLE_PEP_BENCHMARKS.items() if '678' in k), next(iter(SAMPLE_PEP_BENCHMARKS.values()))); extract_decisions_from_posts(b['discourse_url'], b['cached_real_posts'], api_key=os.getenv('LLM_API_KEY', ''), target_files=['src/archtrace/extractor.py'])"
 
       - name: Run ArchTrace PR Memory Bot
         env:
