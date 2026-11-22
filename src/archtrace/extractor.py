@@ -232,4 +232,3 @@ def save_decision(source_url: str, data: Dict, posts: List[Dict], db_path: str =
     conn.commit()
     conn.close()
     return decision_id
-# demo stage 2: __note__ check
