@@ -63,29 +63,31 @@ def lookup_prior_warning(
     """Checks GitHub PR comment history (and local SQLite fallback) for an earlier warning with the same fingerprint."""
     marker = f"archtrace-fingerprint:{fingerprint}"
 
-    # 1. Check GitHub Issues/PRs Search API when running in GitHub Actions
+    # 1. Check live GitHub repo issue/PR comments API (zero search-indexing delay)
     if repo and token:
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github.v3+json",
         }
         try:
-            q = f'repo:{repo} is:pr "{marker}"'
             resp = requests.get(
-                "https://api.github.com/search/issues",
+                f"https://api.github.com/repos/{repo}/issues/comments",
                 headers=headers,
-                params={"q": q, "sort": "created", "order": "asc"},
+                params={"sort": "created", "direction": "asc", "per_page": 100},
                 timeout=15,
             )
             if resp.ok:
-                for item in resp.json().get("items", []):
-                    pr_num = str(item.get("number"))
+                for comment in resp.json():
+                    if marker not in comment.get("body", ""):
+                        continue
+                    issue_url = comment.get("issue_url", "")
+                    pr_num = issue_url.rstrip("/").split("/")[-1]
                     if current_pr and pr_num == str(current_pr):
                         continue
                     return {
                         "first_pr_number": pr_num,
-                        "first_pr_url": item.get("html_url"),
-                        "title": item.get("title", ""),
+                        "first_pr_url": f"https://github.com/{repo}/pull/{pr_num}",
+                        "title": "",
                     }
         except Exception:
             pass
