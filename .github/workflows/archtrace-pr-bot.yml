@@ -10,10 +10,13 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: write
 
 jobs:
   check-historical-decisions:
-    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && contains(github.event.comment.body, '/archtrace approve-override'))
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event.issue.pull_request && contains(github.event.comment.body, 'approve-override'))
     runs-on: ubuntu-latest
     steps:
       - name: Resolve PR ref on comment trigger
@@ -66,3 +69,33 @@ jobs:
           COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
           COMMENT_AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
         run: python -m archtrace.pr_bot
+
+      - name: Re-run PR status check after maintainer override
+        if: github.event_name == 'issue_comment'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HEAD_SHA: ${{ steps.pr_ref.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import os, requests
+          token = os.environ["GITHUB_TOKEN"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["HEAD_SHA"]
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"}
+          runs = requests.get(
+              f"https://api.github.com/repos/{repo}/actions/runs",
+              headers=headers,
+              params={"head_sha": sha, "event": "pull_request", "per_page": 5},
+              timeout=15,
+          ).json().get("workflow_runs", [])
+          for run in runs:
+              if run.get("conclusion") == "failure":
+                  r = requests.post(
+                      f"https://api.github.com/repos/{repo}/actions/runs/{run['id']}/rerun-failed-jobs",
+                      headers=headers,
+                      timeout=15,
+                  )
+                  print(f"Triggered rerun for PR workflow run {run['id']}: HTTP {r.status_code}")
+                  break
+          PY
