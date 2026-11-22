@@ -60,39 +60,43 @@ def lookup_prior_warning(
     token: str | None,
     db_path: str = DEFAULT_DB_PATH,
 ) -> dict | None:
-    """Checks GitHub PR comment history (and local SQLite fallback) for an earlier warning with the same fingerprint."""
+    """Checks GitHub PR comment history (newest first) and local SQLite for an earlier warning or active block."""
     marker = f"archtrace-fingerprint:{fingerprint}"
+    blocked_marker = f"archtrace-blocked:{fingerprint}"
 
-    # 1. Check live GitHub repo issue/PR comments API (zero search-indexing delay)
     if repo and token:
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github.v3+json",
         }
         try:
+            # Check newest 100 comments across repo so recent PR warnings are never missed by pagination
             resp = requests.get(
                 f"https://api.github.com/repos/{repo}/issues/comments",
                 headers=headers,
-                params={"sort": "created", "direction": "asc", "per_page": 100},
+                params={"sort": "created", "direction": "desc", "per_page": 100},
                 timeout=15,
             )
             if resp.ok:
                 for comment in resp.json():
-                    if marker not in comment.get("body", ""):
-                        continue
+                    body = comment.get("body", "")
                     issue_url = comment.get("issue_url", "")
                     pr_num = issue_url.rstrip("/").split("/")[-1]
-                    if current_pr and pr_num == str(current_pr):
-                        continue
-                    return {
-                        "first_pr_number": pr_num,
-                        "first_pr_url": f"https://github.com/{repo}/pull/{pr_num}",
-                        "title": "",
-                    }
+                    if marker in body and (not current_pr or pr_num != str(current_pr)):
+                        return {
+                            "first_pr_number": pr_num,
+                            "first_pr_url": f"https://github.com/{repo}/pull/{pr_num}",
+                            "title": "",
+                        }
+                    if blocked_marker in body and current_pr and pr_num == str(current_pr):
+                        return {
+                            "first_pr_number": "earlier PR",
+                            "first_pr_url": "",
+                            "title": "",
+                        }
         except Exception:
             pass
 
-    # 2. Local SQLite fallback (supports offline testing & local workflow verification)
     conn = get_connection(db_path)
     row = conn.execute(
         "SELECT * FROM pr_warnings WHERE fingerprint = ?",
