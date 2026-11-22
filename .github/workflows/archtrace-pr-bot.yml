@@ -3,18 +3,41 @@ name: ArchTrace PR Decision Guardian
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 jobs:
   check-historical-decisions:
+    if: github.event_name == 'pull_request' || (github.event.issue.pull_request && contains(github.event.comment.body, '/archtrace approve-override'))
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository with full git history (for rename tracking)
+      - name: Resolve PR ref on comment trigger
+        id: pr_ref
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" == "issue_comment" ]; then
+            PR_JSON=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" "${{ github.event.issue.pull_request.url }}")
+            HEAD_SHA=$(echo "$PR_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['head']['sha'])")
+            BASE_REF=$(echo "$PR_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)['base']['ref'])")
+            echo "sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+            echo "base_ref=$BASE_REF" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "base_ref=${{ github.base_ref }}" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout repository with full git history
         uses: actions/checkout@v4
         with:
+          ref: ${{ steps.pr_ref.outputs.sha }}
           fetch-depth: 0
 
       - name: Set up Python
@@ -37,6 +60,9 @@ jobs:
           PYTHONPATH: src
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_BASE_REF: ${{ github.base_ref }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_BASE_REF: ${{ steps.pr_ref.outputs.base_ref }}
+          PR_NUMBER: ${{ steps.pr_ref.outputs.pr_number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
         run: python -m archtrace.pr_bot

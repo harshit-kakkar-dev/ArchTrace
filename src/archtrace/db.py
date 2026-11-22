@@ -77,5 +77,21 @@ def init_db(db_path: str = DEFAULT_DB_PATH) -> None:
         )
     """)
 
+    # 6. Warning fingerprint memory for repeat-PR merge gating
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS pr_warnings (
+            fingerprint TEXT PRIMARY KEY,
+            first_pr_number TEXT,
+            first_pr_url TEXT,
+            decision_title TEXT,
+            target_file TEXT,
+            status TEXT DEFAULT 'WARNED',
+            override_discussion_url TEXT,
+            override_by TEXT,
+            override_reason TEXT,
+            created_at TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()
